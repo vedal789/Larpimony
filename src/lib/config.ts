@@ -53,7 +53,7 @@ export function initAllBlocks() {
 
     const restrictNumeric = (htmlInput: HTMLInputElement) => {
         htmlInput.addEventListener('keydown', (e: KeyboardEvent) => {
-            const allowedKeys = ['backspace', 'delete', 'arrowleft', 'arrowright', 'tab', 'enter', 'home', 'end', '.', '-', 'a', 'c', 'v', 'x'];
+            const allowedKeys = ['backspace', 'delete', 'arrowleft', 'arrowright', 'tab', 'enter', 'home', 'end', '.', '-'];
             const isDigit = /^\d$/.test(e.key);
             const isControl = allowedKeys.includes(e.key.toLowerCase()) || e.ctrlKey || e.metaKey;
             if (!isDigit && !isControl) {

@@ -98,7 +98,6 @@ export const toolbox = {
             name: "Math",
             categorystyle: "math_category",
             contents: [
-                { kind: "block", type: "math_number" },
                 {
                     kind: "block",
                     type: "math_arithmetic",
