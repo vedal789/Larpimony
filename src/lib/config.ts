@@ -1,9 +1,8 @@
 import * as Blockly from "blockly/core";
 import { toolbox } from "./toolbox";
 
-// 1. Create a custom theme based on the default theme that enables hats
 const zeus = Blockly.Theme.defineTheme('custom_hat_theme', {
-    base: Blockly.Themes.Classic, // Or whichever base theme you prefer
+    base: Blockly.Themes.Classic, 
     blockStyles: {},
     categoryStyles: {},
     componentStyles: {},
@@ -14,14 +13,7 @@ const zeus = Blockly.Theme.defineTheme('custom_hat_theme', {
 });
 
 export function initAllBlocks() {
-    const blockModules = import.meta.glob('./blocks/*.ts', { eager: true });
-
-    for (const path in blockModules) {
-        const module = blockModules[path] as any;
-        if (typeof module.blockInit === "function") {
-            module.blockInit();
-        }
-    }
+    import.meta.glob("./blocks/**/*.ts", { eager: true });
 }
 
 export const workspaceConfig: Blockly.BlocklyOptions = {

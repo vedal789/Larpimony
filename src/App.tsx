@@ -17,7 +17,10 @@ export default function App() {
 		}
 
 		initAllBlocks();
-		Blockly.setLocale(En as any);
+		const locale = En as unknown as {
+			[key: string]: string;
+		};
+		Blockly.setLocale(locale);
 
 		const workspace = Blockly.inject(blocklyDiv, workspaceConfig);
 
