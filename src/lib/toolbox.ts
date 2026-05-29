@@ -88,9 +88,39 @@ export const toolbox = {
 
         {
             kind: "category",
-            name: "test",
-            colour: String(categoryColours.test),
-            contents: [{ kind: "block", type: "test" }],
+            name: "Motion",
+            categorystyle: "motion_category",
+            contents: [],
+        },
+        {
+            kind: "category",
+            name: "Appearance",
+            categorystyle: "appearance_category",
+            contents: [],
+        },
+        {
+            kind: "category",
+            name: "Timing",
+            categorystyle: "timing_category",
+            contents: [],
+        },
+        {
+            kind: "category",
+            name: "Effects",
+            categorystyle: "effects_category",
+            contents: [],
+        },
+        {
+            kind: "category",
+            name: "Layers",
+            categorystyle: "layers_category",
+            contents: [],
+        },
+        {
+            kind: "category",
+            name: "Audio",
+            categorystyle: "audio_category",
+            contents: [],
         },
         {
             kind: "category",

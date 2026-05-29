@@ -21,6 +21,12 @@ const theme = Blockly.Theme.defineTheme('modern_dark', {
         list_category: { colour: '#FF8000' },
         variable_category: { colour: '#00FF80' },
         procedure_category: { colour: '#FFD100' },
+        motion_category: { colour: '#4C97FF' },
+        appearance_category: { colour: '#9966FF' },
+        timing_category: { colour: '#FFBF00' },
+        effects_category: { colour: '#FFAB19' },
+        layers_category: { colour: '#4CBFE6' },
+        audio_category: { colour: '#D65CD6' },
     },
     componentStyles: {
         workspaceBackgroundColour: '#0F0F0F',
