@@ -72,7 +72,6 @@ export class Checkbox extends (Blockly.FieldCheckbox as any) {
         if (!this.imageElement_) return;
 
         const url = this.getValueBoolean() ? "/checkbox-true.svg" : "/checkbox-false.svg";
-        // Use the standard `href` attribute only (no xlink fallback).
         this.imageElement_.setAttribute("href", url);
     }
 
@@ -88,10 +87,12 @@ export class Checkbox extends (Blockly.FieldCheckbox as any) {
     }
 }
 try {
-    if ((Blockly as any).fieldRegistry?.get?.("field_checkbox")) {
-    }
+    if ((Blockly as any).fieldRegistry?.get?.("field_checkbox")) { /* i hate you typescript youre making me put random comments raauughhh */ }
+
     Blockly.fieldRegistry.register("field_checkbox", Checkbox as any);
-} catch (e) {
+}
+catch (e) {
+    /* ts pmo */
 }
 
 export default Checkbox;
