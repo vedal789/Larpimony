@@ -34,7 +34,7 @@ const theme = Blockly.Theme.defineTheme('modern_dark', {
     categoryStyles: mapValues(blockColors, (colour) => ({ colour })),
     componentStyles: {
         workspaceBackgroundColour: '#0F0F0F',
-        toolboxBackgroundColour: '#161616',
+        toolboxBackgroundColour: '#1c1c20',
         toolboxForegroundColour: '#E0E0E0',
         flyoutBackgroundColour: '#1A1A1A',
         flyoutForegroundColour: '#E0E0E0',

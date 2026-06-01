@@ -1,0 +1,228 @@
+import { createContext, useContext, type Dispatch } from 'react';
+
+export interface TextSpriteData {
+	content: string;
+	fontFamily: string;
+	fontSize: number;
+	fontWeight: number;
+	color: string;
+	align: 'left' | 'center' | 'right';
+}
+
+export interface ShapeSpriteData {
+	shape: 'rect' | 'ellipse';
+	fill: string;
+	stroke: string;
+	strokeWidth: number;
+}
+
+export interface ImageSpriteData {
+	src: string;
+}
+
+export type SpriteData = TextSpriteData | ShapeSpriteData | ImageSpriteData;
+
+export type SpriteType = 'text' | 'shape' | 'image';
+
+export interface Sprite {
+	id: string;
+	name: string;
+	type: SpriteType;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	rotation: number;
+	opacity: number;
+	visible: boolean;
+	locked: boolean;
+	zIndex: number;
+	data: SpriteData;
+	blocklyXml: string;
+}
+
+export type SpriteAction =
+	| { type: 'ADD_SPRITE'; sprite: Sprite }
+	| { type: 'REMOVE_SPRITE'; id: string }
+	| { type: 'UPDATE_SPRITE'; id: string; changes: Partial<Omit<Sprite, 'id' | 'type'>> }
+	| { type: 'SELECT_SPRITE'; id: string | null }
+	| { type: 'REORDER_SPRITE'; id: string; newIndex: number }
+	| { type: 'DUPLICATE_SPRITE'; id: string };
+
+export interface SpriteState {
+	sprites: Sprite[];
+	selectedSpriteId: string | null;
+}
+
+let nextId = 1;
+
+export function generateSpriteId(): string {
+	return `sprite_${Date.now()}_${nextId++}`;
+}
+
+export function createTextSprite(name: string): Sprite {
+	return {
+		id: generateSpriteId(),
+		name,
+		type: 'text',
+		x: 160,
+		y: 90,
+		width: 200,
+		height: 40,
+		rotation: 0,
+		opacity: 1,
+		visible: true,
+		locked: false,
+		zIndex: 0,
+		blocklyXml: '',
+		data: {
+			content: 'Hello World',
+			fontFamily: 'Inter',
+			fontSize: 24,
+			fontWeight: 400,
+			color: '#ffffff',
+			align: 'left',
+		} as TextSpriteData,
+	};
+}
+
+export function createShapeSprite(name: string): Sprite {
+	return {
+		id: generateSpriteId(),
+		name,
+		type: 'shape',
+		x: 160,
+		y: 90,
+		width: 120,
+		height: 120,
+		rotation: 0,
+		opacity: 1,
+		visible: true,
+		locked: false,
+		zIndex: 0,
+		blocklyXml: '',
+		data: {
+			shape: 'rect',
+			fill: '#4C8BF5',
+			stroke: '#ffffff',
+			strokeWidth: 0,
+		} as ShapeSpriteData,
+	};
+}
+
+export function createImageSprite(name: string, src: string): Sprite {
+	return {
+		id: generateSpriteId(),
+		name,
+		type: 'image',
+		x: 100,
+		y: 50,
+		width: 200,
+		height: 150,
+		rotation: 0,
+		opacity: 1,
+		visible: true,
+		locked: false,
+		zIndex: 0,
+		blocklyXml: '',
+		data: {
+			src,
+		} as ImageSpriteData,
+	};
+}
+
+const defaultTextSprite = createTextSprite('Text 1');
+
+export const initialSpriteState: SpriteState = {
+	sprites: [defaultTextSprite],
+	selectedSpriteId: defaultTextSprite.id,
+};
+
+export function spriteReducer(state: SpriteState, action: SpriteAction): SpriteState {
+	switch (action.type) {
+		case 'ADD_SPRITE': {
+			return {
+				...state,
+				sprites: [...state.sprites, { ...action.sprite, zIndex: state.sprites.length }],
+				selectedSpriteId: action.sprite.id,
+			};
+		}
+		case 'REMOVE_SPRITE': {
+			const filtered = state.sprites.filter(s => s.id !== action.id);
+			return {
+				...state,
+				sprites: filtered,
+				selectedSpriteId: state.selectedSpriteId === action.id
+					? (filtered.length > 0 ? filtered[filtered.length - 1].id : null)
+					: state.selectedSpriteId,
+			};
+		}
+		case 'UPDATE_SPRITE': {
+			return {
+				...state,
+				sprites: state.sprites.map(s =>
+					s.id === action.id ? { ...s, ...action.changes } : s
+				),
+			};
+		}
+		case 'SELECT_SPRITE': {
+			return { ...state, selectedSpriteId: action.id };
+		}
+		case 'REORDER_SPRITE': {
+			const sprites = [...state.sprites];
+			const idx = sprites.findIndex(s => s.id === action.id);
+			if (idx === -1) return state;
+			const [moved] = sprites.splice(idx, 1);
+			sprites.splice(action.newIndex, 0, moved);
+			return {
+				...state,
+				sprites: sprites.map((s, i) => ({ ...s, zIndex: i })),
+			};
+		}
+		case 'DUPLICATE_SPRITE': {
+			const original = state.sprites.find(s => s.id === action.id);
+			if (!original) return state;
+			const dupe: Sprite = {
+				...original,
+				id: generateSpriteId(),
+				name: `${original.name} Copy`,
+				x: original.x + 20,
+				y: original.y + 20,
+				zIndex: state.sprites.length,
+				data: { ...original.data },
+			};
+			return {
+				...state,
+				sprites: [...state.sprites, dupe],
+				selectedSpriteId: dupe.id,
+			};
+		}
+		default:
+			return state;
+	}
+}
+
+export interface SpriteContextValue {
+	state: SpriteState;
+	dispatch: Dispatch<SpriteAction>;
+}
+
+export const SpriteContext = createContext<SpriteContextValue | null>(null);
+
+export function useSprites(): SpriteContextValue {
+	const ctx = useContext(SpriteContext);
+	if (!ctx) throw new Error('useSprites must be used within SpriteProvider');
+	return ctx;
+}
+
+export function isTextData(data: SpriteData): data is TextSpriteData {
+	return 'content' in data && 'fontFamily' in data;
+}
+
+export function isShapeData(data: SpriteData): data is ShapeSpriteData {
+	return 'shape' in data && 'fill' in data;
+}
+
+export function isImageData(data: SpriteData): data is ImageSpriteData {
+	return 'src' in data && !('shape' in data);
+}
