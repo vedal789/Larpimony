@@ -6,6 +6,22 @@ import { useSprites, isTextData, isShapeData, type Sprite } from '../lib/sprites
 const VIRTUAL_WIDTH = 480;
 const VIRTUAL_HEIGHT = 270;
 
+function toCanvasX(x: number) {
+	return x + VIRTUAL_WIDTH / 2;
+}
+
+function toCanvasY(y: number) {
+	return VIRTUAL_HEIGHT / 2 - y;
+}
+
+function fromCanvasX(cx: number) {
+	return cx - VIRTUAL_WIDTH / 2;
+}
+
+function fromCanvasY(cy: number) {
+	return VIRTUAL_HEIGHT / 2 - cy;
+}
+
 function SpriteRenderer({ sprite, isSelected, onSelect }: {
 	sprite: Sprite;
 	isSelected: boolean;
@@ -24,11 +40,16 @@ function SpriteRenderer({ sprite, isSelected, onSelect }: {
 
 	const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
 		if (sprite.locked) return;
-		dispatch({
-			type: 'UPDATE_SPRITE',
-			id: sprite.id,
-			changes: { x: e.target.x(), y: e.target.y() },
-		});
+		const node = e.target;
+		if (isShapeData(sprite.data) && sprite.data.shape === 'ellipse') {
+			const logicalX = fromCanvasX(node.x());
+			const logicalY = fromCanvasY(node.y());
+			dispatch({ type: 'UPDATE_SPRITE', id: sprite.id, changes: { x: logicalX, y: logicalY } });
+			return;
+		}
+		const logicalX = fromCanvasX(node.x() + sprite.width / 2);
+		const logicalY = fromCanvasY(node.y() + sprite.height / 2);
+		dispatch({ type: 'UPDATE_SPRITE', id: sprite.id, changes: { x: logicalX, y: logicalY } });
 	};
 
 	const handleTransformEnd = () => {
@@ -43,12 +64,22 @@ function SpriteRenderer({ sprite, isSelected, onSelect }: {
 		const updatedHeight = Math.max(5, Number((node.height() * scaleY).toFixed(2)));
 		const updatedRotation = node.rotation();
 		const changes: { x: number; y: number; width: number; height: number; rotation: number; data?: typeof sprite.data } = {
-			x: node.x(),
-			y: node.y(),
+			x: 0,
+			y: 0,
 			width: updatedWidth,
 			height: updatedHeight,
 			rotation: updatedRotation,
 		};
+
+		if (isShapeData(sprite.data) && sprite.data.shape === 'ellipse') {
+			const logicalX = fromCanvasX(node.x());
+			const logicalY = fromCanvasY(node.y());
+			changes.x = logicalX;
+			changes.y = logicalY;
+		} else {
+			changes.x = fromCanvasX(node.x() + updatedWidth / 2);
+			changes.y = fromCanvasY(node.y() + updatedHeight / 2);
+		}
 
 		if (isTextSprite && isTextData(sprite.data)) {
 			const fontScale = (Math.abs(scaleX) + Math.abs(scaleY)) / 2;
@@ -66,9 +97,13 @@ function SpriteRenderer({ sprite, isSelected, onSelect }: {
 	};
 
 	const isTextSprite = sprite.type === 'text';
+	const canvasCenterX = toCanvasX(sprite.x);
+	const canvasCenterY = toCanvasY(sprite.y);
+	const canvasTopLeftX = canvasCenterX - sprite.width / 2;
+	const canvasTopLeftY = canvasCenterY - sprite.height / 2;
 	const commonProps = {
-		x: sprite.x,
-		y: sprite.y,
+		x: canvasTopLeftX,
+		y: canvasTopLeftY,
 		width: sprite.width,
 		height: sprite.height,
 		rotation: sprite.rotation,
@@ -105,15 +140,19 @@ function SpriteRenderer({ sprite, isSelected, onSelect }: {
 		if (d.shape === 'ellipse') {
 			element = (
 				<Ellipse
-					{...commonProps}
 					ref={shapeRef as React.RefObject<Konva.Ellipse | null>}
 					radiusX={sprite.width / 2}
 					radiusY={sprite.height / 2}
-					x={sprite.x + sprite.width / 2}
-					y={sprite.y + sprite.height / 2}
+					x={toCanvasX(sprite.x)}
+					y={toCanvasY(sprite.y)}
 					fill={d.fill}
 					stroke={d.stroke}
 					strokeWidth={d.strokeWidth}
+					draggable={!sprite.locked}
+					onClick={onSelect}
+					onTap={onSelect}
+					onDragEnd={handleDragEnd}
+					onTransformEnd={handleTransformEnd}
 				/>
 			);
 		} else {
