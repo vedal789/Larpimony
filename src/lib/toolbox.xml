@@ -141,7 +141,9 @@
   <!-- appearance -->
   <category name="Appearance" categorystyle="appearance_blocks"></category>
   <!-- timing -->
-  <category name="Timing" categorystyle="timing_blocks"></category>
+  <category name="Timing" categorystyle="timing_blocks">
+    <block type="on_start"></block>
+  </category>
   <!-- effects -->
   <category name="Effects" categorystyle="effects_blocks"></category>
   <!-- layers -->
