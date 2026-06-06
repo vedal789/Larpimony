@@ -1,5 +1,5 @@
 import * as Blockly from "blockly/core";
-import ColorWheelField from "blockly-field-color-wheel";
+import ColorWheelField from "../fields/color-wheel";
 import { javascriptGenerator, Order } from "blockly/javascript";
 
 Blockly.Blocks["appearance_show"] = {
