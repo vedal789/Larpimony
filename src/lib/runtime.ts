@@ -41,6 +41,8 @@ class Runtime {
     private sprites: Map<string, SpriteContext> = new Map();
     private currentSpriteId: string | null = null;
     private stopped = false;
+    private epoch = 0;
+    private runEpoch = 0;
     private activeTimeouts = new Set<ReturnType<typeof setTimeout>>();
     private pendingDelays = new Set<(error: StopError) => void>();
     private canvasEffects: Map<string, number> = new Map();
@@ -101,7 +103,7 @@ class Runtime {
     }
 
     isStopped() {
-        return this.stopped;
+        return this.stopped || this.runEpoch !== this.epoch;
     }
 
     delay(ms: number): Promise<void> {
@@ -131,6 +133,7 @@ class Runtime {
 
     stop() {
         this.stopped = true;
+        this.epoch++;
         for (const id of this.activeTimeouts) {
             clearTimeout(id);
         }
@@ -165,7 +168,7 @@ class Runtime {
     }
 
     async emit(event: string, spriteId: string, context: unknown) {
-        if (this.stopped) return;
+        if (this.isStopped()) return;
 
         const spriteEvents = this.spriteHandlers.get(spriteId);
         if (!spriteEvents) return;
@@ -173,7 +176,7 @@ class Runtime {
         const list = spriteEvents.get(event) ?? [];
         await Promise.all(
             list.map(async (h) => {
-                if (this.stopped) return;
+                if (this.isStopped()) return;
                 try {
                     await h(context);
                 } catch (e) {
@@ -193,7 +196,10 @@ class Runtime {
     }
 
     async start() {
+        this.stop();
+        this.runEpoch = this.epoch;
         this.stopped = false;
+        const myEpoch = this.runEpoch;
         const compiled = this.compile();
         this.clearHandlers();
 
@@ -214,11 +220,13 @@ class Runtime {
                 `
                 );
                 await fn(spritesArray, spriteContextMap);
+                if (this.stopped || myEpoch !== this.epoch) return;
             }
 
             for (const [spriteId, context] of this.sprites.entries()) {
-                if (this.stopped) return;
+                if (this.stopped || myEpoch !== this.epoch) return;
                 await this.emit('start', spriteId, context);
+                if (this.stopped || myEpoch !== this.epoch) return;
             }
         } catch (e) {
             if (e instanceof StopError) return;

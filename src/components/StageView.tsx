@@ -205,6 +205,7 @@ export default function StageView() {
 	const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
 	const { state, dispatch } = useSprites();
 	const [isPlaying, setIsPlaying] = useState(false);
+	const playGenerationRef = useRef(0);
 	const spritesRef = useRef(state.sprites);
 	spritesRef.current = state.sprites;
 
@@ -313,6 +314,8 @@ export default function StageView() {
 	}, [dispatch]);
 
 	const handlePlay = async () => {
+		const generation = ++playGenerationRef.current;
+		runtime.stop();
 		setIsPlaying(true);
 
 		state.sprites.forEach(sprite => {
@@ -403,10 +406,13 @@ export default function StageView() {
 		});
 
 		await runtime.start();
-		setIsPlaying(false);
+		if (generation === playGenerationRef.current) {
+			setIsPlaying(false);
+		}
 	};
 
 	const handleStop = () => {
+		playGenerationRef.current++;
 		setIsPlaying(false);
 		runtime.stop();
 	};
