@@ -47,6 +47,8 @@ export const blockVisibilityConfig: BlockVisibilityConfig = {
   layers_sendBackward: { visibleFor: ["sprite"] },
   layers_setZIndex: { visibleFor: ["sprite"] },
   layers_getZIndex: { visibleFor: ["sprite"] },
+
+  text_setText: { visibleFor: ["text"] },
 };
 
 export function isBlockVisibleFor(

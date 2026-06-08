@@ -268,11 +268,7 @@ export default function StageView() {
 					Blockly.Xml.domToWorkspace(dom, tempWorkspace);
 					const code = javascriptGenerator.workspaceToCode(tempWorkspace);
 					if (code.trim()) {
-						parts.push(`
-// ${sprite.id}
-window.RUNTIME?.setCurrentSprite(${JSON.stringify(sprite.id)});
-${code}
-`);
+						parts.push(`// Sprite: ${sprite.name}\nwindow.RUNTIME?.setCurrentSprite(${JSON.stringify(sprite.id)});\n${code.trim()}`);
 					}
 				} catch (e) {
 					console.error(e);
@@ -332,6 +328,7 @@ ${code}
 
 			if (sprite.type === 'text' && isTextData(sprite.data)) {
 				spriteData.color = sprite.data.color;
+				spriteData.text = sprite.data.content;
 			}
 
 			const spriteProxy = new Proxy(spriteData, {
@@ -346,6 +343,13 @@ ${code}
 						}
 						return target.color;
 					}
+					if (property === 'text') {
+						const current = spritesRef.current.find(s => s.id === sprite.id);
+						if (current && isTextData(current.data)) {
+							return current.data.content;
+						}
+						return target.text;
+					}
 					return target[property as keyof typeof target];
 				},
 				set: (target, property, value) => {
@@ -358,6 +362,20 @@ ${code}
 								id: sprite.id,
 								changes: {
 									data: { ...current.data, color: value as string },
+								},
+							});
+						}
+						return true;
+					}
+					if (property === 'text') {
+						const current = spritesRef.current.find(s => s.id === sprite.id);
+						if (current && isTextData(current.data)) {
+							target.text = value;
+							dispatch({
+								type: 'UPDATE_SPRITE',
+								id: sprite.id,
+								changes: {
+									data: { ...current.data, content: value as string },
 								},
 							});
 						}

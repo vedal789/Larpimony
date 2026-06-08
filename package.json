@@ -28,10 +28,12 @@
 		"@blockly/field-angle": "^6.0.9",
 		"@blockly/field-colour": "^6.0.12",
 		"@jaames/iro": "^5.5.2",
+		"@types/prismjs": "^1.26.6",
 		"blockly": "^12.5.1",
 		"blockly-field-color-wheel": "^1.0.5",
 		"konva": "^10.3.0",
 		"lucide-react": "^1.17.0",
+		"prismjs": "^1.30.0",
 		"react": "^19.1.0",
 		"react-dom": "^19.1.0",
 		"react-konva": "^19.2.4"

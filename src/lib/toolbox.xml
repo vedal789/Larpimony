@@ -77,7 +77,6 @@
   </category>
   <!-- math -->
   <category name="Math" categorystyle="math_blocks">
-    <block type="math_number"></block>
     <block type="math_arithmetic">
       <value name="A"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
       <value name="B"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
@@ -105,7 +104,13 @@
   </category>
   <!-- text -->
   <category name="Text" categorystyle="text_blocks">
-    <block type="text"></block>
+    <block type="text_setText">
+      <value name="TEXT">
+        <shadow type="text">
+          <field name="TEXT">Hello!</field>
+        </shadow>
+      </value>
+    </block>
     <block type="text_join"></block>
     <block type="text_append"><value name="TEXT"><shadow type="text"><field name="TEXT"></field></shadow></value></block>
     <block type="text_length"><value name="VALUE"><shadow type="text"><field name="TEXT">abc</field></shadow></value></block>

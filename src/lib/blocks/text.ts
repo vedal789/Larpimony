@@ -13,3 +13,20 @@ javascriptGenerator.forBlock["text"] = function (block: Blockly.Block) {
   const code = JSON.stringify(block.getFieldValue("TEXT"));
   return [code, Order.ATOMIC];
 };
+
+Blockly.Blocks["text_setText"] = {
+  init: function () {
+    this.appendValueInput("TEXT")
+      .setCheck("String")
+      .appendField("set text to");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setStyle("text_blocks");
+    this.setTooltip("Change the text content");
+  },
+};
+
+javascriptGenerator.forBlock["text_setText"] = function (block: Blockly.Block) {
+  const text = javascriptGenerator.valueToCode(block, "TEXT", Order.ATOMIC) || "''";
+  return `context.sprite.text = ${text};\n`;
+};
