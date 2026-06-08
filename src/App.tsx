@@ -8,8 +8,9 @@ import PropertiesPanel from './components/PropertiesPanel';
 import runtime from './lib/runtime';
 import './styles/editor.css';
 
-import Prism from 'prismjs';
-import 'prismjs/components/prism-javascript';
+import hljs from 'highlight.js/lib/core';
+import javascript from 'highlight.js/lib/languages/javascript';
+hljs.registerLanguage('javascript', javascript);
 
 export default function App() {
 	const [state, dispatch] = useReducer(spriteReducer, initialSpriteState);
@@ -23,7 +24,7 @@ export default function App() {
 
 	const highlightedCode = useMemo(() => {
 		if (!generatedJS) return '';
-		return Prism.highlight(generatedJS, Prism.languages.javascript, 'javascript');
+		return hljs.highlight(generatedJS, { language: 'javascript' }).value;
 	}, [generatedJS]);
 
 	const lineNumbers = useMemo(() => {

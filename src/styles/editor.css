@@ -1005,59 +1005,54 @@ body {
   white-space: pre;
 }
 
-.token.comment,
-.token.prolog,
-.token.doctype,
-.token.cdata {
+.hljs-comment,
+.hljs-quote {
   color: var(--text-muted);
 }
 
-.token.punctuation {
+.hljs-punctuation {
   color: var(--text-secondary);
 }
 
-.token.property,
-.token.tag,
-.token.boolean,
-.token.number,
-.token.constant,
-.token.symbol,
-.token.deleted {
+.hljs-number,
+.hljs-literal,
+.hljs-symbol,
+.hljs-bullet {
   color: #f78c6c;
 }
 
-.token.selector,
-.token.attr-name,
-.token.string,
-.token.char,
-.token.builtin,
-.token.inserted {
+.hljs-string,
+.hljs-doctag,
+.hljs-addition {
   color: #c3e88d;
 }
 
-.token.operator,
-.token.entity,
-.token.url,
-.language-css .token.string,
-.style .token.string {
+.hljs-operator,
+.hljs-link {
   color: #89ddff;
 }
 
-.token.atrule,
-.token.attr-value,
-.token.keyword {
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-deletion {
   color: #c792ea;
 }
 
-.token.function,
-.token.class-name {
+.hljs-title,
+.hljs-title.class_,
+.hljs-built_in {
   color: #82aaff;
 }
 
-.token.regex,
-.token.important,
-.token.variable {
+.hljs-regexp,
+.hljs-variable,
+.hljs-template-variable {
   color: #f07178;
+}
+
+.hljs-attr,
+.hljs-attribute {
+  color: #89ddff;
 }
 
 .close-modal-btn {
