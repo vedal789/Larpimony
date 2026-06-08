@@ -122,6 +122,26 @@ javascriptGenerator.forBlock["motion_goToPosition"] = function (block: Blockly.B
   return `context.sprite.x = ${x};\ncontext.sprite.y = ${y};\n`;
 };
 
+Blockly.Blocks["motion_goTo"] = {
+  init: function () {
+    this.appendDummyInput().appendField("go to x:");
+    this.appendValueInput("X").setCheck("Number");
+    this.appendDummyInput().appendField("y:");
+    this.appendValueInput("Y").setCheck("Number");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setInputsInline(true);
+    this.setStyle("motion_blocks");
+    this.setTooltip("Set the sprite's position to the given X and Y");
+  },
+};
+
+javascriptGenerator.forBlock["motion_goTo"] = function (block: Blockly.Block) {
+  const x = javascriptGenerator.valueToCode(block, "X", Order.ATOMIC) || "0";
+  const y = javascriptGenerator.valueToCode(block, "Y", Order.ATOMIC) || "0";
+  return `context.sprite.x = ${x};\ncontext.sprite.y = ${y};\n`;
+};
+
 Blockly.Blocks["motion_positionX"] = {
   init: function () {
     this.appendDummyInput().appendField("position X");
