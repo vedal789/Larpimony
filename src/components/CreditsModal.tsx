@@ -23,7 +23,7 @@ const credits = [
 	},
 	{
 		name: 'Lord Cat',
-		url: '#',
+		url: 'https://lordcat.dev/',
 		roles: 'Developer',
 	},
 ];
