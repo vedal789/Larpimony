@@ -30,8 +30,8 @@ export default function HeaderBar({
 			}
 		};
 
-		document.addEventListener('mousedown', handleClickOutside);
-		return () => document.removeEventListener('mousedown', handleClickOutside);
+		document.addEventListener('pointerup', handleClickOutside);
+		return () => document.removeEventListener('pointerup', handleClickOutside);
 	}, []);
 
 	return (
