@@ -113,10 +113,15 @@ export default function ExportModal({
 					)}
 
 					{isEncoding && (
-						<section className="settings-section">
-							<div className="settings-section-title">
-								<Loader2 className="animate-spin-slow" size={16} />
-								<span>Finalizing file...</span>
+						<div className="export-encoding-body">
+							<div className="export-encoding-icon">
+								<Loader2 className="animate-spin-slow" size={28} />
+							</div>
+							<div className="export-encoding-label">
+								{progress !== null ? `${Math.round(progress)}%` : 'Processing chunks...'}
+							</div>
+							<div className="export-encoding-sublabel">
+								{progress !== null && progress < 100 ? 'Encoding video, do not close this window...' : 'Finalizing file...'}
 							</div>
 							<div className="export-progress-container">
 								<div className="export-progress-bar">
@@ -125,14 +130,11 @@ export default function ExportModal({
 										style={{ width: `${progress ?? 0}%` }}
 									/>
 								</div>
-								<div className="export-progress-text">
-									{progress !== null ? `${Math.round(progress)}%` : 'Processing chunks...'}
-								</div>
 							</div>
-						</section>
+						</div>
 					)}
 
-					<div className="modal-footer" style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+					<div className="modal-footer">
 						{!isExporting && !isEncoding && (
 							<button
 								className="primary-btn"
