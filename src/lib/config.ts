@@ -140,8 +140,6 @@ function getValueInputsForBlock(blockType: string) {
         return [];
     }
 
-    const inputs: { name: string; checks: string[] | null }[] = [];
-
     const mockBlock = {
         inputList: [] as any[],
         appendValueInput(name: string) {

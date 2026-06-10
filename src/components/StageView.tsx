@@ -429,7 +429,6 @@ export default function StageView() {
 	const [exportProgress, setExportProgress] = useState<number | null>(null);
 	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 	const recordedChunksRef = useRef<Blob[]>([]);
-	const exportOptionsRef = useRef<ExportOptions | null>(null);
 
 	const virtualWidth = settings.width;
 	const virtualHeight = settings.height;

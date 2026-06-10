@@ -119,7 +119,7 @@ try {
 
   Blockly.fieldRegistry.register("field_checkbox", Checkbox as any);
 }
-catch (e) {
+catch {
   /* ts pmo */
 }
 

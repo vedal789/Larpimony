@@ -1,4 +1,4 @@
-import { Video, X, Gauge, FileVideo, Loader2, HardDrive, Zap } from 'lucide-react';
+import { X, Gauge, FileVideo, Loader2, HardDrive } from 'lucide-react';
 import { useState } from 'react';
 
 interface ExportModalProps {

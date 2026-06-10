@@ -8,7 +8,7 @@ import {
 } from 'mediabunny';
 
 self.onmessage = async (e: MessageEvent) => {
-	const { options, frames, width, height, fps } = e.data;
+	const { options, frames, fps } = e.data;
 
 	try {
 		if (options.format === 'gif') {
