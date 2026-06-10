@@ -93,7 +93,7 @@ export function createTextSprite(name: string): Sprite {
 			fontFamily: 'Inter',
 			fontSize: 64,
 			fontWeight: 400,
-			color: '#ffffff',
+			color: '#c6daf7',
 			align: 'center',
 		} as TextSpriteData,
 	};

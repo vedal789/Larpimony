@@ -73,7 +73,7 @@ Blockly.Blocks["appearance_setColor"] = {
   init: function () {
     this.appendDummyInput()
       .appendField("set color to")
-      .appendField(new ColorWheelField("#FF0000"), "COLOR");
+      .appendField(new ColorWheelField("#89abdb"), "COLOR");
     this.setPreviousStatement(true, null);
     this.setNextStatement(true, null);
     this.setStyle("appearance_blocks");

@@ -66,7 +66,7 @@ const shadowDefaultsByType: Record<string, ShadowTemplate> = {
     Number: { type: "math_number", fields: { NUM: 0 } },
     String: { type: "text", fields: { TEXT: "" } },
     Array: { type: "lists_create_empty" },
-    Colour: { type: "colour_picker", fields: { COLOUR: "#ff0000" } },
+    Colour: { type: "colour_picker", fields: { COLOUR: "#89abdb" } },
 };
 
 const fallbackShadowTemplate: ShadowTemplate = { type: "text", fields: { TEXT: "" } };

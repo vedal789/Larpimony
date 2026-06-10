@@ -1012,7 +1012,7 @@ export default function StageView() {
 					</button>
 					<button
 						className={`transport-btn ${isRecording ? 'active' : ''}`}
-						title="Record"
+						title="Export"
 						onClick={() => setIsRecordModalOpen(true)}
 						disabled={isRecording}
 					>

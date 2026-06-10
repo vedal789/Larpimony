@@ -3,7 +3,7 @@ import iro from "@jaames/iro";
 
 type ColorPickerOptions = Parameters<typeof iro.ColorPicker>[1];
 
-const defaultColor = "#FF00FF";
+const defaultColor = "#89abdb";
 
 export default class ColorWheelField extends Field {
     static SERIALIZABLE = true;
