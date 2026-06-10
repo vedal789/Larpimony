@@ -9,8 +9,6 @@ import { useProjectSettings } from '../lib/settings';
 import * as Blockly from 'blockly';
 import { javascriptGenerator } from 'blockly/javascript';
 import runtime, { type SpriteContext } from '../lib/runtime';
-// @ts-ignore
-import gifshot from 'gifshot';
 import ExportModal, { type ExportOptions } from './ExportModal';
 
 function createStageCoords(virtualWidth: number, virtualHeight: number) {
@@ -475,19 +473,14 @@ export default function StageView() {
 		setIsEncoding(false);
 		setExportProgress(0);
 
-		let gifFrames: string[] = [];
 		let videoFrames: ImageBitmap[] = [];
 		let frameCounter = 0;
 
 		try {
 			const captureFrame = async () => {
 				try {
-					if (options.format === 'gif') {
-						gifFrames.push(canvas.toDataURL('image/png'));
-					} else {
-						const bitmap = await createImageBitmap(canvas);
-						videoFrames.push(bitmap);
-					}
+					const bitmap = await createImageBitmap(canvas);
+					videoFrames.push(bitmap);
 					frameCounter++;
 				} catch (e) {
 					console.error(e);
@@ -519,47 +512,26 @@ export default function StageView() {
 			setIsRecordModalOpen(true);
 			setExportProgress(0);
 
-			if (options.format === 'gif') {
-				const result = await new Promise<{ image: string }>((resolve, reject) => {
-					gifshot.createGIF({
-						images: gifFrames,
-						gifWidth: physicalWidth,
-						gifHeight: physicalHeight,
-						interval: 1 / fps,
-						numFrames: gifFrames.length,
-						sampleInterval: 10,
-						progressCallback: (progress: number) => setExportProgress(progress * 100),
-					}, (obj: any) => {
-						if (!obj.error) resolve(obj);
-						else reject(new Error(obj.errorMsg));
-					});
-				});
+			const worker = new Worker(new URL('../lib/export.worker.ts', import.meta.url), { type: 'module' });
 
-				const response = await fetch(result.image);
-				const blob = await response.blob();
-				downloadBlob(blob, 'export.gif');
-			} else {
-				const worker = new Worker(new URL('../lib/export.worker.ts', import.meta.url), { type: 'module' });
+			const buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+				worker.onmessage = (e) => {
+					if (e.data.type === 'progress') setExportProgress(e.data.progress);
+					else if (e.data.type === 'done') resolve(e.data.buffer);
+					else if (e.data.type === 'error') reject(new Error(e.data.error));
+				};
+				worker.onerror = reject;
+				worker.postMessage({
+					options,
+					frames: videoFrames,
+					width: physicalWidth,
+					height: physicalHeight,
+					fps
+				}, videoFrames);
+			});
 
-				const buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
-					worker.onmessage = (e) => {
-						if (e.data.type === 'progress') setExportProgress(e.data.progress);
-						else if (e.data.type === 'done') resolve(e.data.buffer);
-						else if (e.data.type === 'error') reject(new Error(e.data.error));
-					};
-					worker.onerror = reject;
-					worker.postMessage({
-						options,
-						frames: videoFrames,
-						width: physicalWidth,
-						height: physicalHeight,
-						fps
-					}, videoFrames);
-				});
-
-				worker.terminate();
-				downloadBlob(new Blob([buffer], { type: options.format === 'mp4' ? 'video/mp4' : 'video/webm' }), `export.${options.format}`);
-			}
+			worker.terminate();
+			downloadBlob(new Blob([buffer], { type: options.format === 'gif' ? 'image/gif' : (options.format === 'mp4' ? 'video/mp4' : 'video/webm') }), `export.${options.format}`);
 		} catch (err) {
 			console.error(err);
 			alert('Export failed');

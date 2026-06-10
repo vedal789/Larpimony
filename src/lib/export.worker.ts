@@ -6,13 +6,44 @@ import {
 	VideoSampleSource,
 	VideoSample,
 } from 'mediabunny';
+import { GIFEncoder, quantize, applyPalette } from 'gifenc';
 
 self.onmessage = async (e: MessageEvent) => {
-	const { options, frames, fps } = e.data;
+	const { options, frames, fps, width, height } = e.data;
 
 	try {
 		if (options.format === 'gif') {
-			self.postMessage({ type: 'error', error: 'so uhh.. this is awkward. i couldnt find a way for GIF exporting to work on a thread, so this is what you get. TODO: fix this' });
+			const encoder = GIFEncoder();
+			const frameDuration = 1000 / fps;
+
+			const canvas = new OffscreenCanvas(width, height);
+			const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+			if (!ctx) {
+				throw new Error("couldn't get 2d context for GIF encoding");
+			}
+
+			for (let i = 0; i < frames.length; i++) {
+				const bitmap = frames[i] as ImageBitmap;
+				ctx.clearRect(0, 0, width, height);
+				ctx.drawImage(bitmap, 0, 0, width, height);
+				bitmap.close();
+
+				const imageData = ctx.getImageData(0, 0, width, height);
+				const { data } = imageData;
+				const palette = quantize(data, 256);
+				const index = applyPalette(data, palette);
+
+				encoder.writeFrame(index, width, height, { palette, delay: frameDuration });
+
+				if (i % 5 === 0) {
+					self.postMessage({ type: 'progress', progress: (i / frames.length) * 100 });
+				}
+			}
+
+			encoder.finish();
+			const buffer = encoder.bytes().buffer;
+			(self as any).postMessage({ type: 'done', buffer }, [buffer]);
 			return;
 		}
 

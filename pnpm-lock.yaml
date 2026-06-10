@@ -72,6 +72,9 @@ importers:
       eslint:
         specifier: ^10.2.0
         version: 10.4.1
+      gifenc:
+        specifier: ^1.0.3
+        version: 1.0.3
       globals:
         specifier: ^17.4.0
         version: 17.6.0
@@ -746,6 +749,9 @@ packages:
   gensync@1.0.0-beta.2:
     resolution: {integrity: sha512-3hN7NaskYvMDLQY55gnW3NQ+mesEAepTqlg+VEbj7zzqEMBVNhzcGYYeqFo/TlYz6eQiFcp1HcsCZO+nGgS8zg==}
     engines: {node: '>=6.9.0'}
+
+  gifenc@1.0.3:
+    resolution: {integrity: sha512-xdr6AdrfGBcfzncONUOlXMBuc5wJDtOueE3c5rdG0oNgtINLD+f2iFZltrBRZYzACRbKr+mSVU/x98zv2u3jmw==}
 
   gifshot@0.4.5:
     resolution: {integrity: sha512-oaOTT7patjxFFv7ptR0R0NNhqy3ZAmcLUQCjM/sTsvsQaUAlB2fHirLajcNAKJ6ufoVhdP+ZkXYvmUycHP1FNg==}
@@ -1963,6 +1969,8 @@ snapshots:
     optional: true
 
   gensync@1.0.0-beta.2: {}
+
+  gifenc@1.0.3: {}
 
   gifshot@0.4.5: {}
 
