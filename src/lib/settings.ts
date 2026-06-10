@@ -8,6 +8,7 @@ export interface ProjectSettings {
 	showGrid: boolean;
 	snapToGrid: boolean;
 	gridSize: number;
+	showROT: boolean;
 }
 
 export const DEFAULT_PROJECT_SETTINGS: ProjectSettings = {
@@ -16,6 +17,7 @@ export const DEFAULT_PROJECT_SETTINGS: ProjectSettings = {
 	fps: 60,
 	backgroundColor: '#1a1a1a',
 	showGrid: true,
+	showROT: true,
 	snapToGrid: false,
 	gridSize: 80,
 };
@@ -37,6 +39,7 @@ export function normalizeProjectSettings(value: Partial<ProjectSettings> | undef
 		showGrid: value?.showGrid ?? DEFAULT_PROJECT_SETTINGS.showGrid,
 		snapToGrid: value?.snapToGrid ?? DEFAULT_PROJECT_SETTINGS.snapToGrid,
 		gridSize: clampNumber(value?.gridSize, 5, 200, DEFAULT_PROJECT_SETTINGS.gridSize),
+		showROT: value?.showROT ?? DEFAULT_PROJECT_SETTINGS.showROT,
 	};
 }
 

@@ -148,6 +148,13 @@ export default function SettingsModal({ settings, onChange, isClosing = false, o
 								onClick={() => update({ snapToGrid: !settings.snapToGrid })}
 							/>
 						</div>
+						<div className="settings-row">
+							<span className="settings-label">Show rule of thirds</span>
+							<button
+								className={`settings-toggle ${settings.showROT ? 'on' : 'off'}`}
+								onClick={() => update({ showROT: !settings.showROT })}
+							/>
+						</div>
 					</section>
 				</div>
 			</div>

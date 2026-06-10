@@ -140,6 +140,43 @@ function StageGrid({
 	return <>{lines}</>;
 }
 
+function StageROT({width, height}: {width:number, height:number}) { // maybe?
+	const lines = useMemo(() => {
+		const elements: React.ReactNode[] = [];
+		const Wthird = width/3;
+		const Hthird = height/3;
+		const rotColor = 'rgba(41, 248, 34, 0.56)';
+		// X
+		for (let x = 1; x <= 2; x++) {
+			elements.push(
+				<Line
+				key={`v-${x}`}
+				points={[x*Wthird, 0, x*Wthird, height]}
+				stroke={rotColor}
+				strokeWidth={2}
+				listening={false}
+				/>
+			);
+		}
+		// Y
+		for (let y = 1; y <= 2; y++) {
+			elements.push(
+				<Line
+				key={`h-${y}`}
+				points={[0, y*Hthird, width, y*Hthird]}
+				stroke={rotColor}
+				strokeWidth={2}
+				listening={false}
+				/>
+			);
+		}
+
+		return elements;
+	}, [width, height]);
+
+	return <>{lines}</>;
+}
+
 function SpriteRenderer({ sprite, isSelected, showTransformer, onSelect, onNodeReady, stageCoords, snapToGrid, gridSize }: {
 	sprite: Sprite;
 	isSelected: boolean;
@@ -942,6 +979,8 @@ export default function StageView() {
 		[settings.backgroundColor],
 	);
 	const showGrid = settings.showGrid && !(isPlaying && !isPaused);
+	const showROT = settings.showROT && !(isPlaying && !isPaused); // rule of thirds
+	//const showROT = true; // tmp dev
 	const showTransformers = !isPlaying || isPaused;
 
 	return (
@@ -1016,6 +1055,12 @@ export default function StageView() {
 									height={virtualHeight}
 									gridSize={settings.gridSize}
 									stroke={gridColor}
+								/>
+							)}
+							{showROT && (
+								<StageROT
+									width={virtualWidth}
+									height={virtualHeight}
 								/>
 							)}
 							{sorted.map(sprite => (
