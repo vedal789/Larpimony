@@ -12,6 +12,7 @@ function WaveformPreview({ src, soundId, volume }: { src: string; soundId: strin
 	const [duration, setDuration] = useState(0);
 	const [playing, setPlaying] = useState(false);
 	const [progress, setProgress] = useState(0);
+	const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
 	const startRef = useRef(0);
 	const rafRef = useRef<number | null>(null);
 	const previewId = `preview_${soundId}`;
@@ -70,7 +71,23 @@ function WaveformPreview({ src, soundId, volume }: { src: string; soundId: strin
 			ctx.fillStyle = played ? '#7aa2f7' : '#3a3f55';
 			ctx.fillRect(i * barWidth, (h - barHeight) / 2, Math.max(1, barWidth - 1), barHeight);
 		}
-	}, [peaks, progress]);
+	}, [peaks, progress, canvasSize]);
+
+	useEffect(() => {
+		const canvas = canvasRef.current;
+		if (!canvas) return;
+
+		const updateSize = () => {
+			const rect = canvas.getBoundingClientRect();
+			setCanvasSize({ width: rect.width, height: rect.height });
+		};
+
+		updateSize();
+		const observer = new ResizeObserver(updateSize);
+		observer.observe(canvas);
+
+		return () => observer.disconnect();
+	}, []);
 
 	useEffect(() => {
 		if (playing) runtime.setSoundVolume(previewId, volume);
