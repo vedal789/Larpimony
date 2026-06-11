@@ -137,6 +137,7 @@
     <block type="lists_getSublist"></block>
     <block type="lists_sort"></block>
   </category>
+  <category name="Dictionaries" categorystyle="dict_blocks"></category>
   <category name="Motion" categorystyle="motion_blocks">
     <block type="motion_goTo"><value name="X"><shadow type="math_number"><field name="NUM">0</field></shadow></value><value name="Y"><shadow type="math_number"><field name="NUM">0</field></shadow></value></block>
     <block type="motion_moveBy"><value name="DX"><shadow type="math_number"><field name="NUM">10</field></shadow></value><value name="DY"><shadow type="math_number"><field name="NUM">0</field></shadow></value></block>
