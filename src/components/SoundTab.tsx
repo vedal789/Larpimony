@@ -2,7 +2,7 @@ import {useState} from 'react';
 
 import '../styles/editor.css';
 import { useSprites } from '../lib/sprites';
-import { AudioLines, PlayIcon } from 'lucide-react';
+import { AudioLines, PlayIcon, Plus, PauseIcon } from 'lucide-react';
 
 export default function SoundTab() {
 	const { state, dispatch } = useSprites();
@@ -23,7 +23,62 @@ export default function SoundTab() {
 			},
 		},
 		});
-	}
+	};
+	const readSoundFile = (file: File) => {
+		const reader = new FileReader();
+		reader.onload = () => {
+			const src = String(reader.result ?? '');
+			const id = generateMediaSoundId();
+			const newSounds = sprite!.data.sounds
+			newSounds?.push({
+				id,
+				name: file.name.replace(/\.[^.]+$/, '') || 'Sound' + (sprite?.data.sounds.length! + 1),
+				src,
+			});
+			// YO THIS SYSTEM HAS CAUSED ME SO MUCH PAIN
+			if (sprite?.type === 'media') {
+				dispatch(
+					{
+						type:"UPDATE_SPRITE", 
+						id: sprite!.id, 
+						changes: {
+							data: {
+								...sprite!.data,
+								sounds: newSounds,
+								currentSoundId: id
+							}
+						}
+					}
+				);
+			} else {
+				dispatch(
+					{
+						type:"UPDATE_SPRITE", 
+						id: sprite!.id, 
+						changes: {
+							data: {
+								...sprite!.data,
+								sounds: newSounds,
+								currentSoundId: id,
+							}
+						}
+					}
+				);
+			}
+		};
+		reader.readAsDataURL(file);
+	};
+
+	const newSound = () => {
+		const input = document.createElement('input');
+		input.type = 'file';
+		input.accept = 'audio/*';
+		input.onchange = () => {
+			const file = input.files?.[0];
+			if (file) readSoundFile(file);
+		};
+		input.click();
+	};
 	return (
 		<div className="sound-tab">
 			<div className="sound-tab-side">
@@ -37,6 +92,12 @@ export default function SoundTab() {
 						</button>
 					))
 				}
+				<button className="sound-tab-sound-new" onClick={() => {
+					newSound();
+				}}>
+					<Plus style={{height: "40px", width: "40px"}} />
+					<span>Add sound</span>
+				</button>
 			</div>
 			<div className="sound-tab-editor">
 				{
@@ -82,7 +143,7 @@ export default function SoundTab() {
 
 							<button className="audio-editor-play" onClick={() => {
 								window.RUNTIME?.playSound(activeItem.src, false, activeItem.id);
-							}}>{/* im gonna have to upgrade the current branch to do this but please change this to a pause icon whil its playing */ <PlayIcon />}</button>
+							}}>{/* i think this function has a glitch */window.RUNTIME?.isSoundPlaying(activeItem.id) ? <PauseIcon /> :<PlayIcon />}</button>
 						</div>
 					)
 				}

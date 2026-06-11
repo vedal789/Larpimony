@@ -2,12 +2,35 @@ import {useState} from 'react';
 
 import '../styles/editor.css';
 import { useSprites } from '../lib/sprites';
-import { AudioLines, PlayIcon, PauseIcon } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import { generateMediaSoundId, isMediaData, type MediaSpriteData, generateMediaImageId } from '../lib/sprites';
 
 export default function ImageTab() {
 	const { state, dispatch } = useSprites();
 	const sprite = state.sprites.find(s => s.id === state.selectedSpriteId);
 	const [audioIDX, setAudioIDX] = useState(0);
+	// @ts-ignore
+	if(!(sprite?.data.images)){
+		return (
+				<div style={{
+					height: '100%',
+					width: '100%',
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+					zIndex: 50,
+					color: 'var(--text-secondary)',
+					fontSize: '13px',
+					fontWeight: 500,
+					pointerEvents: 'all',
+					textAlign: 'center',
+					userSelect: 'none',
+					boxSizing: 'border-box'
+				}}>
+					Text types are not supported for image tab
+				</div>
+		)
+	}
 	// @ts-ignore
 	const activeItem = sprite?.data.images[audioIDX];
 	const updateImage = (id: string, changes: Record<string, unknown>) => {
@@ -50,6 +73,116 @@ export default function ImageTab() {
 		)
 	}
 
+	const update = (changes: Record<string, unknown>) => {
+		dispatch({ type: 'UPDATE_SPRITE', id: sprite.id, changes });
+	};
+
+	const updateMediaData = (data: MediaSpriteData, extraChanges: Record<string, unknown> = {}) => {
+		update({ ...extraChanges, data });
+	};
+
+	const readImageFile = (file: File) => {
+		if (!isMediaData(sprite.data)) return;
+		const reader = new FileReader();
+		reader.onload = () => {
+			const src = String(reader.result ?? '');
+			const isVideo = file.type.startsWith('video/');
+			const imageId = generateMediaImageId();
+
+			const newImage = {
+				id: imageId,
+				//@ts-ignore
+				name: file.name.replace(/\.[^.]+$/, '') || 'Image ' + (sprite.data.images.length + 1),
+				src,
+			};
+
+			// @ts-ignore
+			const newImages = [...sprite.data.images, newImage];
+
+			update({
+				data: {
+					...sprite.data,
+					images: newImages,
+					currentImageId: imageId,
+				},
+			});
+
+			if (isVideo) {
+				const video = document.createElement('video');
+				video.src = src;
+				video.onloadedmetadata = () => {
+					if (!isMediaData(sprite.data)) return;
+					const nextData: MediaSpriteData = {
+						...sprite.data,
+						currentImageId: imageId,
+						images: newImages.map((image) =>
+							image.id === imageId
+								? { ...image, src, name: image.name || file.name.replace(/\.[^.]+$/, '') || 'Video' }
+								: image
+						),
+					};
+					updateMediaData(nextData, {
+						width: Math.max(5, video.videoWidth || sprite.width),
+						height: Math.max(5, video.videoHeight || sprite.height),
+					});
+				};
+				video.onerror = () => {
+					if (!isMediaData(sprite.data)) return;
+					updateMediaData({
+						...sprite.data,
+						currentImageId: imageId,
+						images: newImages.map((image) =>
+							image.id === imageId ? { ...image, src } : image
+						),
+					});
+				};
+			} else {
+				const image = new window.Image();
+				image.onload = () => {
+					if (!isMediaData(sprite.data)) return;
+					const nextData: MediaSpriteData = {
+						...sprite.data,
+						currentImageId: imageId,
+						images: newImages.map((image) =>
+							image.id === imageId
+								? { ...image, src, name: image.name || file.name.replace(/\.[^.]+$/, '') || 'Image' }
+								: image
+						),
+					};
+					updateMediaData(nextData, {
+						width: Math.max(5, image.naturalWidth || sprite.width),
+						height: Math.max(5, image.naturalHeight || sprite.height),
+					});
+				};
+				image.onerror = () => {
+					if (!isMediaData(sprite.data)) return;
+					updateMediaData({
+						...sprite.data,
+						currentImageId: imageId,
+						images: newImages.map((image) =>
+							image.id === imageId ? { ...image, src } : image
+						),
+					});
+				};
+				image.src = src;
+			}
+
+			setAudioIDX(newImages.length -1);
+		};
+		reader.readAsDataURL(file);
+	};
+
+	const newImage = () => {
+		const input = document.createElement('input');
+		input.type = 'file';
+		input.accept = 'image/*,video/*,.svg';
+		input.onchange = () => {
+			const file = input.files?.[0];
+			if (file) readImageFile(file);
+		};
+		input.click();
+	};
+
 	return (
 		<div className="sound-tab">
 			<div className="sound-tab-side">
@@ -64,6 +197,13 @@ export default function ImageTab() {
 						</button>
 					))
 				}
+
+				<button className="sound-tab-sound-new" onClick={() => {
+					newImage();
+				}}>
+					<Plus style={{height: "40px", width: "40px"}} />
+					<span>Add sound</span>
+				</button>
 			</div>
 			<div className="sound-tab-editor">
 				{

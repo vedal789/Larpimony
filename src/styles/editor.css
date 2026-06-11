@@ -14,6 +14,9 @@
   --accent-dim: rgba(62, 126, 245, 0.12);
   --accent-glow: rgba(62, 126, 245, 0.25);
 
+  --accent-green: #3ef55d;
+  --accent-green-dim: rgba(62, 245, 77, 0.12);
+
   --text-primary: #f0f0f2;
   --text-secondary: #8888a0;
   --text-muted: #606068;
@@ -1700,6 +1703,7 @@ body {
   background: var(--bg-secondary);
   overflow-y: auto;
   padding: 6px;
+  gap: 6px;
 }
 
 .sound-tab-sound {
@@ -1775,4 +1779,19 @@ body {
   font-size: 16px;
   cursor: pointer;
   border: 1px solid var(--accent-dm);
+}
+
+.sound-tab-sound-new {
+  background: var(--accent-green-dim);
+  border: 2px solid var(--accent-green);
+  border-radius: var(--radius-sm);
+  padding: 6px;
+  color: var(--text-primary);
+  font-size: 14px;
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  text-align: center;
+  flex-direction: column;
+  cursor: pointer;
 }
