@@ -696,7 +696,20 @@ export default function StageView() {
 				try {
 					const dom = Blockly.utils.xml.textToDom(sprite.blocklyXml);
 					Blockly.Xml.domToWorkspace(dom, tempWorkspace);
-					const code = javascriptGenerator.workspaceToCode(tempWorkspace);
+
+					const hatBlocks = tempWorkspace.getTopBlocks(true).filter(
+						(block: Blockly.Block) => (
+							block.previousConnection === null &&
+							block.outputConnection === null
+						)
+					);
+
+					javascriptGenerator.init(tempWorkspace);
+					const code = hatBlocks.map((block: Blockly.Block) => 
+						javascriptGenerator.blockToCode(block)
+					).join('');
+					javascriptGenerator.finish(code);
+
 					if (code.trim()) {
 						parts.push(`window.RUNTIME?.setCurrentSprite(${JSON.stringify(sprite.id)});\ncontext = spriteContextMap[${JSON.stringify(sprite.id)}];\n${code.trim()}`);
 					}

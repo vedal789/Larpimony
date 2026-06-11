@@ -87,7 +87,7 @@ class Runtime {
     private frameRafId: number | null = null;
     private frameTimeoutId: ReturnType<typeof setTimeout> | null = null;
     private lastFrameTime = 0;
-    private activeAudio = new Set<HTMLAudioElement>();
+    private activeAudio = new Map<string, HTMLAudioElement>();
 
     private isStepping = false;
     public virtualTime = 0;
@@ -161,8 +161,9 @@ class Runtime {
             mix(ch0, ch1, buffer.sampleRate, startOffset, sound.loop);
         }
 
+        const spritesSnapshot = this.getSprites?.() ?? [];
         for (const [id] of this.sprites.entries()) {
-            const spriteData = (this.getSprites?.().find(s => s.id === id)?.data) as any;
+            const spriteData = (spritesSnapshot.find(s => s.id === id)?.data) as any;
             if (!spriteData || !spriteData.images || !spriteData.currentImageId) continue;
 
             const image = spriteData.images.find((img: any) => img.id === spriteData.currentImageId);
@@ -234,7 +235,6 @@ class Runtime {
             }
         }
 
-        await new Promise(resolve => setTimeout(resolve, 0));
         await new Promise(resolve => setTimeout(resolve, 0));
     }
 
@@ -442,7 +442,7 @@ class Runtime {
         this.clearHandlers();
     }
 
-    async playSound(src: string, loop: boolean = false, id?: string): Promise<void> {
+    async playSound(src: string, loop: boolean = false, id: string): Promise<void> {
         if (this.stopped || !src) return;
 
         if (this.isStepping) {
@@ -465,11 +465,11 @@ class Runtime {
 
         const audio = new Audio(src);
         audio.loop = loop;
-        this.activeAudio.add(audio);
+        this.activeAudio.set(id, audio);
 
         return new Promise((resolve, reject) => {
             const cleanup = () => {
-                this.activeAudio.delete(audio);
+                this.activeAudio.delete(id);
                 audio.removeEventListener('ended', onEnded);
                 audio.removeEventListener('error', onError);
             };
@@ -508,9 +508,7 @@ class Runtime {
 
     stopAllSounds() {
         this.activePlayingSounds.clear();
-        const audios = Array.from(this.activeAudio);
-        this.activeAudio.clear();
-        for (const audio of audios) {
+        for (const audio of this.activeAudio.values()) {
             try {
                 audio.pause();
                 audio.dispatchEvent(new Event('ended'));
@@ -518,6 +516,7 @@ class Runtime {
                 // ignore
             }
         }
+        this.activeAudio.clear();
         const nodes = Array.from(this.activeSteppingNodes);
         this.activeSteppingNodes.clear();
         for (const node of nodes) {
@@ -528,6 +527,10 @@ class Runtime {
                 // ignore
             }
         }
+    }
+
+    isSoundPlaying(id: string) {
+        return this.activeAudio.has(id);
     }
 
     setCanvasEffect(effect: string, value: number) {

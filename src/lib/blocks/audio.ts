@@ -1,9 +1,9 @@
 import * as Blockly from "blockly/core";
-import { javascriptGenerator } from "blockly/javascript";
+import { javascriptGenerator, Order } from "blockly/javascript";
 
-const getSoundOptions = function(this: any) {
+const getSoundOptions: Blockly.MenuGenerator = function(this: any) {
   const block = this instanceof Blockly.Block ? this : this.getSourceBlock();
-  if (!block) return [["no sounds", ""]];
+  if (!block) return [["", ""]];
 
   const workspace = block.workspace;
   const spriteId = (workspace as any).spriteId;
@@ -20,7 +20,7 @@ const getSoundOptions = function(this: any) {
   const hasSounds = options.length > 0;
   
   if (!hasSounds) {
-    options.push(["no sounds", ""]);
+    options.push(["", ""]);
   }
   
   const currentValue = block.getFieldValue("SOUND");
@@ -51,7 +51,8 @@ Blockly.Blocks["audio_play"] = {
 
 javascriptGenerator.forBlock["audio_play"] = function (block: Blockly.Block) {
   const soundId = block.getFieldValue("SOUND") || "";
-  return `const _sound = context.sprite.sounds?.find(s => s.id === "${soundId}");\nif (_sound?.src) window.RUNTIME.playSound(_sound.src, false, "${soundId}");\n`;
+  return `const _sound = context.sprite.sounds?.find(s => s.id === "${soundId}");
+    if (_sound?.src) window.RUNTIME.playSound(_sound.src, false, "${soundId}");\n`;
 };
 
 Blockly.Blocks["audio_playUntilDone"] = {
@@ -69,7 +70,8 @@ Blockly.Blocks["audio_playUntilDone"] = {
 
 javascriptGenerator.forBlock["audio_playUntilDone"] = function (block: Blockly.Block) {
   const soundId = block.getFieldValue("SOUND") || "";
-  return `const _soundWait = context.sprite.sounds?.find(s => s.id === "${soundId}");\nif (_soundWait?.src) await window.RUNTIME.playSound(_soundWait.src, false, "${soundId}");\n`;
+  return `const _soundWait = context.sprite.sounds?.find(s => s.id === "${soundId}");
+    if (_soundWait?.src) await window.RUNTIME.playSound(_soundWait.src, false, "${soundId}");\n`;
 };
 
 Blockly.Blocks["audio_stopAll"] = {
@@ -84,4 +86,21 @@ Blockly.Blocks["audio_stopAll"] = {
 
 javascriptGenerator.forBlock["audio_stopAll"] = function () {
   return `window.RUNTIME.stopAllSounds();\n`;
+};
+
+Blockly.Blocks["audio_isPlaying"] = {
+  init: function () {
+    this.appendDummyInput()
+      .appendField("is sound")
+      .appendField(new Blockly.FieldDropdown(getSoundOptions), "SOUND")
+      .appendField("playing");
+    this.setOutput(true, "Boolean");
+    this.setStyle("audio_blocks");
+    this.setTooltip("Returns whether a sound is currently playing");
+  }
+};
+
+javascriptGenerator.forBlock["audio_isPlaying"] = function (block: Blockly.Block) {
+  const soundId = block.getFieldValue("SOUND") || "";
+  return [`window.RUNTIME.isSoundPlaying("${soundId}")`, Order.FUNCTION_CALL];
 };

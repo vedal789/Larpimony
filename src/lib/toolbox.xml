@@ -201,6 +201,7 @@
     <block type="audio_play"></block>
     <block type="audio_playUntilDone"></block>
     <block type="audio_stopAll"></block>
+    <block type="audio_isPlaying"></block>
   </category>
   <category name="Variables" categorystyle="variable_blocks" custom="VARIABLE"></category>
   <category name="Functions" categorystyle="procedure_blocks">
