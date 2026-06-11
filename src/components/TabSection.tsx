@@ -5,6 +5,7 @@ import BlocklyEditor from './BlocklyEditor';
 import '../styles/editor.css';
 import { Code, Image, Volume2 } from 'lucide-react'
 import { useSprites } from '../lib/sprites';
+import SoundTab from'./SoundTab';
 
 export default function TabSection() { // this needs to be called tabsection cuz ts dosent liek it when i import tabpanel
     const { state, dispatch } = useSprites();
@@ -29,7 +30,7 @@ export default function TabSection() { // this needs to be called tabsection cuz
                 <div>temp 2nd tab</div>
             </TabPanel>
             <TabPanel>
-                <div>temp 3rd tab</div>
+                <SoundTab />
             </TabPanel>
         </Tabs>
     )

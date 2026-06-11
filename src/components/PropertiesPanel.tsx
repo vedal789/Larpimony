@@ -288,48 +288,6 @@ export default function PropertiesPanel() {
 
 		return (
 			<div className="properties-section">
-				<div className="properties-section-title">
-					<div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%' }}>
-						<span style={{ flex: 1 }}>Media</span>
-						{hasImages && hasSounds && (
-							<div style={{ display: 'flex', background: 'var(--bg-secondary)', padding: '2px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
-								<button
-									className="properties-btn"
-									style={{
-										height: '22px',
-										padding: '0 8px',
-										border: 'none',
-										background: currentType === 'images' ? 'var(--bg-surface)' : 'transparent',
-										color: currentType === 'images' ? 'var(--text-primary)' : 'var(--text-muted)',
-										fontSize: '10px',
-										fontWeight: 600,
-										minWidth: '60px'
-									}}
-									onClick={() => setActiveAssetType('images')}
-								>
-									Images
-								</button>
-								<button
-									className="properties-btn"
-									style={{
-										height: '22px',
-										padding: '0 8px',
-										border: 'none',
-										background: currentType === 'sounds' ? 'var(--bg-surface)' : 'transparent',
-										color: currentType === 'sounds' ? 'var(--text-primary)' : 'var(--text-muted)',
-										fontSize: '10px',
-										fontWeight: 600,
-										minWidth: '60px'
-									}}
-									onClick={() => setActiveAssetType('sounds')}
-								>
-									Sounds
-								</button>
-							</div>
-						)}
-					</div>
-				</div>
-
 				<div className="media-tabs">
 					{items.map((item: any) => (
 						<button
