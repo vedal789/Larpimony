@@ -12,9 +12,11 @@ import runtime from './lib/runtime';
 import { serializeProject, deserializeProject } from './lib/projectFormat';
 import { DEFAULT_PROJECT_SETTINGS, ProjectSettingsContext, type ProjectSettings } from './lib/settings';
 import './styles/editor.css';
+import './components/TabSection'
 
 import hljs from 'highlight.js/lib/core';
 import javascript from 'highlight.js/lib/languages/javascript';
+import TabSection from './components/TabSection';
 hljs.registerLanguage('javascript', javascript);
 
 const MODAL_EXIT_MS = 120;
@@ -167,7 +169,7 @@ export default function App() {
 						onOpenCredits={() => openModal('credits', setShowCredits)}
 						onOpenSettings={() => openModal('settings', setShowSettings)}
 					/>
-					<BlocklyEditor />
+					<TabSection/>
 					<div className="right-column">
 						<StageView />
 						<div className="panel" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflowY: 'auto' }}>
