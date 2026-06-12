@@ -279,7 +279,12 @@ export function isMediaData(data: SpriteData): data is MediaSpriteData {
   return "images" in data && "currentImageId" in data;
 }
 
-export function getSpriteRotationOrigin(sprite: Pick<Sprite, 'width' | 'height' | 'rotationOriginX' | 'rotationOriginY'>) {
+export function getSpriteRotationOrigin(
+  sprite: Pick<
+    Sprite,
+    "width" | "height" | "rotationOriginX" | "rotationOriginY"
+  >,
+) {
   return {
     x: sprite.width * sprite.rotationOriginX,
     y: sprite.height * sprite.rotationOriginY,

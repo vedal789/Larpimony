@@ -29,34 +29,58 @@ function drawGraph(
   ctx.scale(dpr, dpr);
 
   const toX = (p: number) => PAD + p * (w - PAD * 2);
-  const toY = (e: number) => (h - PAD) - e * (h - PAD * 2);
+  const toY = (e: number) => h - PAD - e * (h - PAD * 2);
 
   ctx.clearRect(0, 0, w, h);
 
   const cs = getComputedStyle(canvas);
-  const gridColor = cs.getPropertyValue("--graph-grid").trim() || "rgba(255,255,255,0.08)";
-  const axisColor = cs.getPropertyValue("--graph-axis").trim() || "rgba(255,255,255,0.2)";
+  const gridColor =
+    cs.getPropertyValue("--graph-grid").trim() || "rgba(255,255,255,0.08)";
+  const axisColor =
+    cs.getPropertyValue("--graph-axis").trim() || "rgba(255,255,255,0.2)";
   const curveColor = cs.getPropertyValue("--graph-curve").trim() || "#7c6dfa";
-  const curveShadowColor = cs.getPropertyValue("--graph-curve-shadow").trim() || "rgba(124,109,250,0.15)";
+  const curveShadowColor =
+    cs.getPropertyValue("--graph-curve-shadow").trim() ||
+    "rgba(124,109,250,0.15)";
   const dotColor = cs.getPropertyValue("--graph-dot").trim() || "#fff";
-  const dotGlowColor = cs.getPropertyValue("--graph-dot-glow").trim() || "rgba(124,109,250,0.35)";
-  const indicatorLineColor = cs.getPropertyValue("--graph-indicator").trim() || "rgba(255,255,255,0.15)";
+  const dotGlowColor =
+    cs.getPropertyValue("--graph-dot-glow").trim() || "rgba(124,109,250,0.35)";
+  const indicatorLineColor =
+    cs.getPropertyValue("--graph-indicator").trim() || "rgba(255,255,255,0.15)";
 
   ctx.strokeStyle = gridColor;
   ctx.lineWidth = 1;
   ctx.setLineDash([3, 4]);
 
-  ctx.beginPath(); ctx.moveTo(PAD, PAD); ctx.lineTo(w - PAD, PAD); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(w - PAD, PAD); ctx.lineTo(w - PAD, h - PAD); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(PAD, h / 2); ctx.lineTo(w - PAD, h / 2); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(w / 2, PAD); ctx.lineTo(w / 2, h - PAD); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(PAD, PAD);
+  ctx.lineTo(w - PAD, PAD);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(w - PAD, PAD);
+  ctx.lineTo(w - PAD, h - PAD);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(PAD, h / 2);
+  ctx.lineTo(w - PAD, h / 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(w / 2, PAD);
+  ctx.lineTo(w / 2, h - PAD);
+  ctx.stroke();
 
   ctx.setLineDash([]);
   ctx.strokeStyle = axisColor;
   ctx.lineWidth = 1.5;
 
-  ctx.beginPath(); ctx.moveTo(PAD, h - PAD); ctx.lineTo(w - PAD, h - PAD); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(PAD, PAD); ctx.lineTo(PAD, h - PAD); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(PAD, h - PAD);
+  ctx.lineTo(w - PAD, h - PAD);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(PAD, PAD);
+  ctx.lineTo(PAD, h - PAD);
+  ctx.stroke();
 
   const STEPS = 240;
 
@@ -92,14 +116,21 @@ function drawGraph(
     ctx.strokeStyle = indicatorLineColor;
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 3]);
-    ctx.beginPath(); ctx.moveTo(ix, PAD); ctx.lineTo(ix, h - PAD); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(ix, PAD);
+    ctx.lineTo(ix, h - PAD);
+    ctx.stroke();
     ctx.setLineDash([]);
 
-    ctx.beginPath(); ctx.arc(ix, iy, 10, 0, Math.PI * 2);
-    ctx.fillStyle = dotGlowColor; ctx.fill();
+    ctx.beginPath();
+    ctx.arc(ix, iy, 10, 0, Math.PI * 2);
+    ctx.fillStyle = dotGlowColor;
+    ctx.fill();
 
-    ctx.beginPath(); ctx.arc(ix, iy, 5, 0, Math.PI * 2);
-    ctx.fillStyle = dotColor; ctx.fill();
+    ctx.beginPath();
+    ctx.arc(ix, iy, 5, 0, Math.PI * 2);
+    ctx.fillStyle = dotColor;
+    ctx.fill();
   }
 }
 
@@ -154,7 +185,9 @@ export default function TweenTab() {
   const { state, dispatch } = useSprites();
   const sprite = state.sprites.find((s) => s.id === state.selectedSpriteId);
 
-  const [activeProperty, setActiveProperty] = useState<TweenableProperty | "default">("default");
+  const [activeProperty, setActiveProperty] = useState<
+    TweenableProperty | "default"
+  >("default");
   const [t, setT] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const requestRef = useRef<number | null>(null);
@@ -199,7 +232,9 @@ export default function TweenTab() {
       <div className="tween-tab-empty">
         <Spline size={40} className="tween-tab-empty-icon" />
         <h3 className="tween-tab-empty-title">No Sprite Selected</h3>
-        <p className="tween-tab-empty-desc">Select a sprite to configure its tweening.</p>
+        <p className="tween-tab-empty-desc">
+          Select a sprite to configure its tweening.
+        </p>
       </div>
     );
   }
@@ -247,14 +282,20 @@ export default function TweenTab() {
             <select
               className="tween-select"
               value={sprite.tweenMode}
-              onChange={(e) => updateSprite({ tweenMode: e.target.value as TweenMode })}
+              onChange={(e) =>
+                updateSprite({ tweenMode: e.target.value as TweenMode })
+              }
               onClick={(e) => e.stopPropagation()}
             >
               {TWEEN_MODE_OPTIONS.map(([label, mode]) => (
-                <option key={mode} value={mode}>{label}</option>
+                <option key={mode} value={mode}>
+                  {label}
+                </option>
               ))}
             </select>
-            <span className="tween-default-hint">(applies to every property)</span>
+            <span className="tween-default-hint">
+              (applies to every property)
+            </span>
           </div>
 
           <div className="tween-overrides-label">Overrides</div>
@@ -297,13 +338,18 @@ export default function TweenTab() {
                       value={propMode}
                       onChange={(e) => {
                         updateSprite({
-                          tweenModes: { ...sprite.tweenModes, [prop]: e.target.value as TweenMode },
+                          tweenModes: {
+                            ...sprite.tweenModes,
+                            [prop]: e.target.value as TweenMode,
+                          },
                         });
                       }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {TWEEN_MODE_OPTIONS.map(([modeLabel, mode]) => (
-                        <option key={mode} value={mode}>{modeLabel}</option>
+                        <option key={mode} value={mode}>
+                          {modeLabel}
+                        </option>
                       ))}
                     </select>
                   )}
@@ -342,7 +388,9 @@ export default function TweenTab() {
                 <div className="preview-track" />
                 <div
                   className="preview-element"
-                  style={{ transform: `translateX(calc(${easedT * 100}% - 50%))` }}
+                  style={{
+                    transform: `translateX(calc(${easedT * 100}% - 50%))`,
+                  }}
                 />
               </div>
             </div>

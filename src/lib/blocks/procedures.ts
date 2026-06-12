@@ -11,17 +11,22 @@ Blockly.Blocks[RETURN_TYPE] = {
     this.appendValueInput("VALUE").appendField("return");
     this.setPreviousStatement(true, null);
     this.setStyle("procedure_blocks");
-    this.setTooltip("Return a value  (if used with a function it'll turn the block into a reporter)");
+    this.setTooltip(
+      "Return a value  (if used with a function it'll turn the block into a reporter)",
+    );
   },
 };
 
 javascriptGenerator.forBlock[RETURN_TYPE] = function (block: Blockly.Block) {
-  const value = javascriptGenerator.valueToCode(block, "VALUE", Order.NONE) || "undefined";
+  const value =
+    javascriptGenerator.valueToCode(block, "VALUE", Order.NONE) || "undefined";
   return `return ${value};\n`;
 };
 
 function definitionReturns(def: Blockly.Block): boolean {
-  return def.getDescendants(false).some((descendant) => descendant.type === RETURN_TYPE);
+  return def
+    .getDescendants(false)
+    .some((descendant) => descendant.type === RETURN_TYPE);
 }
 
 export function functionsFlyout(
@@ -32,7 +37,9 @@ export function functionsFlyout(
     {
       kind: "block",
       type: RETURN_TYPE,
-      inputs: { VALUE: { shadow: { type: "math_number", fields: { NUM: 0 } } } },
+      inputs: {
+        VALUE: { shadow: { type: "math_number", fields: { NUM: 0 } } },
+      },
     },
   ];
 
@@ -70,7 +77,8 @@ function replaceCaller(caller: Blockly.BlockSvg, newType: string): void {
 
   for (const input of caller.inputList) {
     const connection = input.connection;
-    if (!connection || connection.type !== Blockly.ConnectionType.INPUT_VALUE) continue;
+    if (!connection || connection.type !== Blockly.ConnectionType.INPUT_VALUE)
+      continue;
     const target = connection.targetConnection;
     const newConnection = replacement.getInput(input.name)?.connection;
     if (target && newConnection) newConnection.connect(target);
@@ -83,8 +91,10 @@ function replaceCaller(caller: Blockly.BlockSvg, newType: string): void {
   replacement.moveBy(position.x, position.y);
 
   if (newType === CALL_STATEMENT) {
-    if (prevTarget && replacement.previousConnection) prevTarget.connect(replacement.previousConnection);
-    if (nextTarget && replacement.nextConnection) replacement.nextConnection.connect(nextTarget);
+    if (prevTarget && replacement.previousConnection)
+      prevTarget.connect(replacement.previousConnection);
+    if (nextTarget && replacement.nextConnection)
+      replacement.nextConnection.connect(nextTarget);
   }
 
   caller.dispose(false);
@@ -101,7 +111,10 @@ export function syncProcedureReturns(workspace: Blockly.WorkspaceSvg): void {
       const name = def.getFieldValue("NAME");
       if (!name) continue;
       const wanted = definitionReturns(def) ? CALL_REPORTER : CALL_STATEMENT;
-      for (const caller of Blockly.Procedures.getCallers(name, workspace) as Blockly.BlockSvg[]) {
+      for (const caller of Blockly.Procedures.getCallers(
+        name,
+        workspace,
+      ) as Blockly.BlockSvg[]) {
         if (caller.type !== wanted) replaceCaller(caller, wanted);
       }
     }
@@ -111,4 +124,4 @@ export function syncProcedureReturns(workspace: Blockly.WorkspaceSvg): void {
   }
 }
 
-export { };
+export {};

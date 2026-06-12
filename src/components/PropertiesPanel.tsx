@@ -17,7 +17,6 @@ import {
   getFontPermissionState,
 } from "../lib/fonts";
 
-
 export default function PropertiesPanel() {
   const { state, dispatch } = useSprites();
   const sprite = state.sprites.find((s) => s.id === state.selectedSpriteId);
@@ -194,8 +193,6 @@ export default function PropertiesPanel() {
             />
           </div>
         </div>
-
-
 
         {isTextData(sprite.data) &&
           (() => {

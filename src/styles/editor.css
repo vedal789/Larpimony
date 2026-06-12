@@ -2036,8 +2036,12 @@ body {
 }
 
 @keyframes spin-anim {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .tween-config-section {
@@ -2055,7 +2059,9 @@ body {
   border-radius: var(--radius-md);
   padding: 10px 12px;
   cursor: pointer;
-  transition: border-color 0.12s, background 0.12s;
+  transition:
+    border-color 0.12s,
+    background 0.12s;
   display: flex;
   flex-direction: column;
   gap: 7px;
@@ -2112,7 +2118,9 @@ body {
   border-radius: var(--radius-md);
   padding: 8px 10px;
   cursor: pointer;
-  transition: border-color 0.12s, background 0.12s;
+  transition:
+    border-color 0.12s,
+    background 0.12s;
 }
 
 .tween-prop-row:hover {
@@ -2347,7 +2355,11 @@ body {
   width: 22px;
   height: 22px;
   border-radius: var(--radius-sm);
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--accent) 0%,
+    var(--accent-hover) 100%
+  );
   box-shadow: 0 0 10px var(--accent-glow);
   flex-shrink: 0;
   position: relative;

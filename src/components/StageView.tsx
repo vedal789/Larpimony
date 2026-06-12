@@ -358,16 +358,16 @@ function SpriteRenderer({
     const height = node.height();
     const topLeft = snapToGrid
       ? snapTopLeftToGrid(
-        node.x() - width / 2,
-        node.y() - height / 2,
-        width,
-        height,
-        gridSize,
-      )
-    : {
-        x: node.x() - width / 2,
-        y: node.y() - height / 2,
-      };
+          node.x() - width / 2,
+          node.y() - height / 2,
+          width,
+          height,
+          gridSize,
+        )
+      : {
+          x: node.x() - width / 2,
+          y: node.y() - height / 2,
+        };
     if (snapToGrid) {
       node.x(topLeft.x);
       node.y(topLeft.y);
@@ -1077,8 +1077,8 @@ export default function StageView() {
         node.setAttrs({
           x: stageCoords.toCanvasX(x),
           y: stageCoords.toCanvasY(y),
-		  offsetX: width / 2,
-		  offsetY: height / 2,
+          offsetX: width / 2,
+          offsetY: height / 2,
           width,
           height,
           rotation,
@@ -1090,6 +1090,8 @@ export default function StageView() {
             node.setAttr("fill", spriteData.color);
           if (typeof spriteData.text === "string")
             node.setAttr("text", spriteData.text);
+          if (typeof spriteData.fontSize === "number")
+            node.setAttr("fontSize", spriteData.fontSize);
         }
         node.getLayer()?.batchDraw();
       };
@@ -1110,6 +1112,7 @@ export default function StageView() {
       if (sprite.type === "text" && isTextData(sprite.data)) {
         spriteData.color = sprite.data.color;
         spriteData.text = sprite.data.content;
+        spriteData.fontSize = sprite.data.fontSize;
       }
       if (sprite.type === "media" && isMediaData(sprite.data)) {
         const media = sprite.data;
@@ -1269,6 +1272,21 @@ export default function StageView() {
             return true;
           }
           if (typeof property === "string" && property in target) {
+            if (property === "width" && current && isTextData(current.data)) {
+              const scale = Number(value) / Number(target.width);
+
+              const newFontSize = Math.max(1, current.data.fontSize * scale);
+
+              target.fontSize = newFontSize;
+
+              queuePlaybackStateUpdate(sprite.id, {
+                data: {
+                  ...current.data,
+                  fontSize: newFontSize,
+                },
+              });
+            }
+
             target[property] = value;
             applyLiveSprite();
             queuePlaybackStateUpdate(sprite.id, { [property]: value });
