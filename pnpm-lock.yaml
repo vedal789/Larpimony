@@ -34,6 +34,12 @@ importers:
       mediabunny:
         specifier: ^1.46.0
         version: 1.46.0
+      plyr:
+        specifier: ^3.8.4
+        version: 3.8.4
+      plyr-react:
+        specifier: ^6.0.0
+        version: 6.0.0(plyr@3.8.4)(react@19.2.7)
       prism:
         specifier: ^4.1.2
         version: 4.1.2(react@19.2.7)
@@ -971,6 +977,9 @@ packages:
       }
     deprecated: core-js@<3.23.3 is no longer maintained and not recommended for usage due to the number of issues. Because of the V8 engine whims, feature detection in old core-js versions could cause a slowdown up to 100x even if nothing is polyfilled. Some versions have web compatibility issues. Please, upgrade your dependencies to the actual version of core-js.
 
+  core-js@3.49.0:
+    resolution: {integrity: sha512-es1U2+YTtzpwkxVLwAFdSpaIMyQaq0PBgm3YD1W3Qpsn1NAmO3KSgZfu+oGSWVu6NvLHoHCV/aYcsE5wiB7ALg==}
+
   cross-spawn@7.0.6:
     resolution:
       {
@@ -990,6 +999,9 @@ packages:
       {
         integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==,
       }
+
+  custom-event-polyfill@1.0.7:
+    resolution: {integrity: sha512-TDDkd5DkaZxZFM8p+1I3yAlvM3rSr1wbrOliG4yJiwinMZN8z/iGL7BTlDkrJcYTmgUSb4ywVCc3ZaUtOtC76w==}
 
   data-urls@5.0.0:
     resolution:
@@ -1528,6 +1540,9 @@ packages:
       }
     engines: { node: ">= 12.0.0" }
 
+  loadjs@4.3.0:
+    resolution: {integrity: sha512-vNX4ZZLJBeDEOBvdr2v/F+0aN5oMuPu7JTqrMwp+DtgK+AryOlpy6Xtm2/HpNr+azEa828oQjOtWsB6iDtSfSQ==}
+
   locate-path@6.0.0:
     resolution:
       {
@@ -1675,6 +1690,16 @@ packages:
       }
     engines: { node: ">=12" }
 
+  plyr-react@6.0.0:
+    resolution: {integrity: sha512-P8M+BuQoGrCd7m6K4QwwQlcSS1E26OeXuJTAmgLx11B9UqJrdc3Ka4TFwPwF3jul4EsVxSK9Zn1ME3DV8m9gdw==}
+    engines: {node: '>=16'}
+    peerDependencies:
+      plyr: ^3.7.7
+      react: '>=16.8'
+
+  plyr@3.8.4:
+    resolution: {integrity: sha512-DrzLbK9Wol3zeiuZCleD9aUOl0KAaBHR9H6WVVVYPZ4Ya+LYxUFTgSF1jooHcMQCv96Ws96wCaZzIoP3bES8pQ==}
+
   postcss@8.5.15:
     resolution:
       {
@@ -1741,6 +1766,18 @@ packages:
         integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==,
       }
     engines: { node: ">=6" }
+
+  rangetouch@2.0.1:
+    resolution: {integrity: sha512-sln+pNSc8NGaHoLzwNBssFSf/rSYkqeBXzX1AtJlkJiUaVSJSbRAWJk+4omsXkN+EJalzkZhWQ3th1m0FpR5xA==}
+
+  react-aptor@2.0.0:
+    resolution: {integrity: sha512-YnCayokuhAwmBBP4Oc0bbT2l6ApfsjbY3DEEVUddIKZEBlGl1npzjHHzWnSqWuboSbMZvRqUM01Io9yiIp1wcg==}
+    engines: {node: '>=12.7.0'}
+    peerDependencies:
+      react: '>=16.8'
+    peerDependenciesMeta:
+      react:
+        optional: true
 
   react-contexify@6.0.0:
     resolution:
@@ -2003,6 +2040,9 @@ packages:
       {
         integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==,
       }
+
+  url-polyfill@1.1.14:
+    resolution: {integrity: sha512-p4f3TTAG6ADVF3mwbXw7hGw+QJyw5CnNGvYh5fCuQQZIiuKUswqcznyV3pGDP9j0TSmC4UvRKm8kl1QsX1diiQ==}
 
   vite@8.0.16:
     resolution:
@@ -2684,6 +2724,8 @@ snapshots:
 
   core-js@1.2.7: {}
 
+  core-js@3.49.0: {}
+
   cross-spawn@7.0.6:
     dependencies:
       path-key: 3.1.1
@@ -2696,6 +2738,8 @@ snapshots:
       rrweb-cssom: 0.8.0
 
   csstype@3.2.3: {}
+
+  custom-event-polyfill@1.0.7: {}
 
   data-urls@5.0.0:
     dependencies:
@@ -2996,6 +3040,8 @@ snapshots:
       lightningcss-win32-arm64-msvc: 1.32.0
       lightningcss-win32-x64-msvc: 1.32.0
 
+  loadjs@4.3.0: {}
+
   locate-path@6.0.0:
     dependencies:
       p-locate: 5.0.0
@@ -3069,6 +3115,20 @@ snapshots:
 
   picomatch@4.0.4: {}
 
+  plyr-react@6.0.0(plyr@3.8.4)(react@19.2.7):
+    dependencies:
+      plyr: 3.8.4
+      react: 19.2.7
+      react-aptor: 2.0.0(react@19.2.7)
+
+  plyr@3.8.4:
+    dependencies:
+      core-js: 3.49.0
+      custom-event-polyfill: 1.0.7
+      loadjs: 4.3.0
+      rangetouch: 2.0.1
+      url-polyfill: 1.1.14
+
   postcss@8.5.15:
     dependencies:
       nanoid: 3.3.12
@@ -3106,6 +3166,12 @@ snapshots:
       react-is: 16.13.1
 
   punycode@2.3.1: {}
+
+  rangetouch@2.0.1: {}
+
+  react-aptor@2.0.0(react@19.2.7):
+    optionalDependencies:
+      react: 19.2.7
 
   react-contexify@6.0.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
     dependencies:
@@ -3260,6 +3326,8 @@ snapshots:
   uri-js@4.4.1:
     dependencies:
       punycode: 2.3.1
+
+  url-polyfill@1.1.14: {}
 
   vite@8.0.16(@types/node@22.19.19):
     dependencies:

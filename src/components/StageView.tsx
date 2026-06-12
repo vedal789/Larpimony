@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { Play, Square, Pause, Video, Maximize, X } from "lucide-react";
+import { Play, Square, Pause, Video, Maximize, X, Download } from "lucide-react";
 import {
   Stage,
   Layer,
@@ -24,6 +24,8 @@ import * as Blockly from "blockly";
 import { javascriptGenerator } from "blockly/javascript";
 import runtime, { type SpriteContext } from "../lib/runtime";
 import ExportModal, { type ExportOptions } from "./ExportModal";
+import { Plyr } from "plyr-react";
+import "plyr/dist/plyr.css";
 
 function createStageCoords(virtualWidth: number, virtualHeight: number) {
   return {
@@ -578,6 +580,7 @@ export default function StageView() {
   const [isRecording, setIsRecording] = useState(false);
   const [isEncoding, setIsEncoding] = useState(false);
   const [exportProgress, setExportProgress] = useState<number | null>(null);
+  const [exportedVideo, setExportedVideo] = useState<{ url: string; name: string } | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
 
@@ -598,6 +601,28 @@ export default function StageView() {
 
   const [canvasEffects, setCanvasEffects] = useState<Record<string, number>>(
     {},
+  );
+
+  const plyrSource = useMemo(() => {
+    if (!exportedVideo) return undefined;
+    return {
+      type: "video" as const,
+      sources: [
+        {
+          src: exportedVideo.url,
+          type: exportedVideo.name.endsWith(".mp4") ? "video/mp4" : "video/webm",
+        },
+      ],
+    };
+  }, [exportedVideo?.url, exportedVideo?.name]);
+
+  const plyrOptions = useMemo(
+    () => ({
+      autoplay: true,
+      hideControls: false,
+      resetOnEnd: true,
+    }),
+    [],
   );
 
   const resetRecordingState = useCallback(() => {
@@ -647,6 +672,7 @@ export default function StageView() {
           videoFrames.push(bitmap);
 
           const samples = runtime.getAudioSamples(1 / fps, sampleRate);
+          runtime.playCapturedSamples(samples, sampleRate);
           audioSamples.push(samples);
 
           frameCounter++;
@@ -664,12 +690,19 @@ export default function StageView() {
       await new Promise((resolve) => setTimeout(resolve, 0));
       await new Promise((resolve) => setTimeout(resolve, 0));
 
+      const exportStartTime = performance.now();
       while (true) {
         layer.draw();
         await captureFrame();
         if (finished) break;
 
         await runtime.step();
+
+        const expectedMs = (frameCounter / fps) * 1000;
+        const actualMs = performance.now() - exportStartTime;
+        if (actualMs < expectedMs) {
+          await new Promise((resolve) => setTimeout(resolve, expectedMs - actualMs));
+        }
 
         if (frameCounter > fps * 300) break;
       }
@@ -709,17 +742,17 @@ export default function StageView() {
       worker.terminate();
       const now = new Date();
       const ts = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
-      downloadBlob(
-        new Blob([buffer], {
-          type:
-            options.format === "gif"
-              ? "image/gif"
-              : options.format === "mp4"
-                ? "video/mp4"
-                : "video/webm",
-        }),
-        `export_${ts}.${options.format}`,
-      );
+      const fileName = `export_${ts}.${options.format}`;
+      const blob = new Blob([buffer], {
+        type:
+          options.format === "gif"
+            ? "image/gif"
+            : options.format === "mp4"
+              ? "video/mp4"
+              : "video/webm",
+      });
+      const url = URL.createObjectURL(blob);
+      setExportedVideo({ url, name: fileName });
     } catch (err) {
       console.error(err);
       alert("Export failed");
@@ -1457,6 +1490,58 @@ export default function StageView() {
           isEncoding={isEncoding}
           progress={exportProgress}
         />
+      )}
+
+      {exportedVideo && (
+        <div className="modal-overlay" onClick={() => setExportedVideo(null)}>
+          <div className="modal-content stage-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header" style={{ position: "relative", justifyContent: "center" }}>
+              <h2 style={{ position: "absolute", left: "var(--space-lg)" }}>Export Complete</h2>
+              <button
+                className="primary-btn"
+                style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0 1rem" }}
+                onClick={() => {
+                  const a = document.createElement("a");
+                  a.href = exportedVideo.url;
+                  a.download = exportedVideo.name;
+                  a.click();
+                }}
+              >
+                <Download size={18} />
+                Download
+              </button>
+              <button
+                className="close-modal-btn"
+                onClick={() => setExportedVideo(null)}
+                style={{ position: "absolute", right: "var(--space-lg)" }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body stage-modal-body" style={{ background: "#000", minHeight: "400px", display: "block" }}>
+              {exportedVideo.name.endsWith(".gif") ? (
+                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <img
+                    src={exportedVideo.url}
+                    alt="Exported GIF"
+                    style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
+                  />
+                </div>
+              ) : (
+                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{ width: "80%", height: "80%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ width: "100%", maxWidth: virtualWidth }}>
+                      <Plyr
+                        source={plyrSource!}
+                        options={plyrOptions}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

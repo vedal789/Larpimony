@@ -165,6 +165,7 @@ class Runtime {
   private liveVoices: Map<string, Set<LiveVoice>> = new Map();
   private activePlayingSounds: Set<OfflineVoice> = new Set();
   private spritesProvider: (() => Sprite[]) | null = null;
+  private nextMonitoringTime = 0;
 
   private getAudioContext() {
     if (!this.audioContext) {
@@ -328,6 +329,32 @@ class Runtime {
       stereo[numSamples + i] = Math.tanh(right[i] * master);
     }
     return stereo;
+  }
+
+  playCapturedSamples(samples: Float32Array, sampleRate: number) {
+    try {
+      const ctx = this.getAudioContext();
+      if (ctx.state === "suspended") ctx.resume();
+
+      const numSamples = samples.length / 2;
+      const buffer = ctx.createBuffer(2, numSamples, sampleRate);
+
+      buffer.getChannelData(0).set(samples.subarray(0, numSamples));
+      buffer.getChannelData(1).set(samples.subarray(numSamples));
+
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(this.getMasterGain());
+
+      const now = ctx.currentTime;
+      const lookahead = 0.05;
+      const startTime = Math.max(now + lookahead, this.nextMonitoringTime);
+      source.start(startTime);
+
+      this.nextMonitoringTime = startTime + numSamples / sampleRate;
+    } catch (e) {
+      console.error("Failed to play captured samples:", e);
+    }
   }
 
   setFps(fps: number) {
@@ -561,6 +588,7 @@ class Runtime {
     this.stopAllSounds();
     this.activePlayingSounds.clear();
     this.resetAudioState();
+    this.nextMonitoringTime = 0;
     this.cancelFrameTick();
     for (const waiter of this.frameWaiters) {
       waiter.reject(new StopError());

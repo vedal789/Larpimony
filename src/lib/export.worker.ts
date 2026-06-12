@@ -97,7 +97,6 @@ self.onmessage = async (e: MessageEvent) => {
       await videoSource.add(sample, { keyFrame: i % 60 === 0 });
       sample.close();
       bitmap.close();
-
       if (audioSource && audioSamples[i]) {
         const pcm = audioSamples[i] as Float32Array;
         const audioSample = new AudioSample({
@@ -108,6 +107,7 @@ self.onmessage = async (e: MessageEvent) => {
           data: pcm.buffer,
         });
         await audioSource.add(audioSample);
+        audioSample.close();
       }
 
       if (i % 10 === 0) {

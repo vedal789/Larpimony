@@ -37,6 +37,8 @@
     "konva": "^10.3.0",
     "lucide-react": "^1.17.0",
     "mediabunny": "^1.46.0",
+    "plyr": "^3.8.4",
+    "plyr-react": "^6.0.0",
     "prism": "^4.1.2",
     "react": "^19.1.0",
     "react-contexify": "^6.0.0",
@@ -45,3 +47,4 @@
     "react-tabs": "^6.1.1"
   }
 }
+
