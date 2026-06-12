@@ -1,31 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import * as Blockly from 'blockly';
-import { javascriptGenerator } from 'blockly/javascript';
 
 import 'blockly/blocks';
 
-(() => {
-	try {
-		const proc = [
-			'procedures_defnoreturn',
-			'procedures_defreturn',
-			'procedures_callnoreturn',
-			'procedures_callreturn',
-		];
-		const blk = Blockly as unknown as { Blocks?: Record<string, unknown> };
-		const gen = javascriptGenerator as unknown as { forBlock?: Record<string, unknown> };
-		for (const t of proc) {
-			if (blk.Blocks && blk.Blocks[t]) delete blk.Blocks[t];
-			if (gen.forBlock && gen.forBlock[t]) delete gen.forBlock[t];
-		}
-	} catch {
-		// ignore
-	}
-})();
 import * as En from 'blockly/msg/en';
 import { initAllBlocks, workspaceConfig, buildToolboxForSource } from '../lib/config';
 import { getSourceTypeForSprite } from '../lib/blockVisibility';
 import { MOTION_CATEGORY_NAME, updateMotionGoToFlyoutDefaults } from '../lib/flyoutDefaults';
+import { functionsFlyout, syncProcedureReturns } from '../lib/blocks/procedures';
 import { useSprites } from '../lib/sprites';
 
 function syncShadowColours(workspace: Blockly.WorkspaceSvg | Blockly.Workspace) {
@@ -135,6 +117,7 @@ export default function BlocklyEditor() {
 
 		const workspace = Blockly.inject(blocklyDiv, workspaceConfig);
 		workspaceRef.current = workspace;
+		workspace.registerToolboxCategoryCallback('PROCEDURE', functionsFlyout);
 		(workspace as any).spriteId = selectedSpriteId;
 		(workspace as any).sprites = state.sprites;
 		if (selectedSprite) {
@@ -186,6 +169,7 @@ export default function BlocklyEditor() {
 
 		const handleWorkspaceChange = (e: Blockly.Events.Abstract) => {
 			ensureForLoopVariableBlocks(workspace);
+			if (!isSwappingRef.current) syncProcedureReturns(workspace);
 			syncShadowColours(workspace);
 			const fw = getFlyoutWorkspace(workspace);
 			if (fw) syncShadowColours(fw);
