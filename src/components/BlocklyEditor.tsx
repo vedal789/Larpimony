@@ -35,6 +35,7 @@ import {
   MOTION_CATEGORY_NAME,
   updateMotionGoToFlyoutDefaults,
 } from "../lib/flyoutDefaults";
+import { ensureDefaultInputBlocks } from "../lib/blocks/defaultInputBlocks";
 import { useSprites } from "../lib/sprites";
 
 function syncShadowColours(
@@ -45,54 +46,6 @@ function syncShadowColours(
     const parent = block.getParent();
     if (!parent) continue;
     block.setColour(parent.getColour());
-  }
-}
-
-function ensureForLoopVariableBlocks(
-  workspace: Blockly.WorkspaceSvg | Blockly.Workspace,
-) {
-  for (const block of workspace.getAllBlocks(false)) {
-    if (block.type !== "controls_forLoop") continue;
-    const input = block.getInput("VAR");
-    if (!input || input.connection?.targetBlock()) continue;
-
-    const variableBlock = workspace.newBlock("controls_forLoop_var");
-    const renderedVariableBlock = variableBlock as unknown as {
-      initSvg?: () => void;
-      render?: () => void;
-    };
-    renderedVariableBlock.initSvg?.();
-    renderedVariableBlock.render?.();
-    variableBlock.moveBy(0, 0);
-
-    const outputConnection = variableBlock.outputConnection;
-    if (outputConnection && input.connection) {
-      outputConnection.connect(input.connection);
-    }
-  }
-}
-
-function ensureLambdaArgumentBlocks(
-  workspace: Blockly.WorkspaceSvg | Blockly.Workspace,
-) {
-  for (const block of workspace.getAllBlocks(false)) {
-    if (block.type !== "functions_lambda") continue;
-    const input = block.getInput("ARG");
-    if (!input || input.connection?.targetBlock()) continue;
-
-    const argumentBlock = workspace.newBlock("functions_argument");
-    const renderedArgumentBlock = argumentBlock as unknown as {
-      initSvg?: () => void;
-      render?: () => void;
-    };
-    renderedArgumentBlock.initSvg?.();
-    renderedArgumentBlock.render?.();
-    argumentBlock.moveBy(0, 0);
-
-    const outputConnection = argumentBlock.outputConnection;
-    if (outputConnection && input.connection) {
-      outputConnection.connect(input.connection);
-    }
   }
 }
 
@@ -230,8 +183,18 @@ export default function BlocklyEditor() {
     loadedSpriteIdRef.current = selectedSpriteId;
 
     const handleWorkspaceChange = (e: Blockly.Events.Abstract) => {
-      ensureForLoopVariableBlocks(workspace);
-      ensureLambdaArgumentBlocks(workspace);
+      ensureDefaultInputBlocks(workspace, [
+        {
+          blockType: "controls_forLoop",
+          inputName: "VAR",
+          defaultBlockType: "controls_forLoop_var",
+        },
+        {
+          blockType: "functions_lambda",
+          inputName: "ARG",
+          defaultBlockType: "functions_argument",
+        },
+      ]);
       syncShadowColours(workspace);
       const fw = getFlyoutWorkspace(workspace);
       if (fw) syncShadowColours(fw);
