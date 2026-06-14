@@ -14,6 +14,7 @@ export type ExpandableValueBlockOptions = {
   type: string;
   style: string;
   output?: string | string[] | null;
+  outputShape?: number;
   previousStatement?: string | string[] | null;
   nextStatement?: string | string[] | null;
   initialItemCount?: number;
@@ -86,6 +87,10 @@ export function defineExpandableValueBlock(
       this.setInputsInline(true);
       this.setStyle(options.style);
       if (options.output !== undefined) this.setOutput(true, options.output);
+      if (options.outputShape !== undefined) {
+        (this as Blockly.Block & { setOutputShape?: (shape: number) => void })
+          .setOutputShape?.(options.outputShape);
+      }
       if (options.previousStatement !== undefined) {
         this.setPreviousStatement(true, options.previousStatement);
       }

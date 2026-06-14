@@ -1,6 +1,7 @@
 import * as Blockly from "blockly";
 import toolboxXml from "./toolbox.xml?raw";
 import { isBlockVisibleFor, type BlockSourceType } from "./blockVisibility";
+import { appendExtensionCategories } from "./extensions/manager";
 
 const blockColors = {
   logic_blocks: "#6f8ff7",
@@ -319,6 +320,8 @@ export function buildToolboxForSource(sourceType: BlockSourceType): Element {
       category.remove();
     }
   }
+
+  appendExtensionCategories(toolbox);
 
   return toolbox;
 }

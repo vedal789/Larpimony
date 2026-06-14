@@ -36,6 +36,7 @@ import {
   updateMotionGoToFlyoutDefaults,
 } from "../lib/flyoutDefaults";
 import { ensureDefaultInputBlocks } from "../lib/blocks/defaultInputBlocks";
+import { subscribeExtensionChanges } from "../lib/extensions/manager";
 import { useSprites } from "../lib/sprites";
 
 function syncShadowColours(
@@ -138,6 +139,13 @@ export default function BlocklyEditor() {
         buildToolboxForSource(getSourceTypeForSprite(selectedSprite.type)),
       );
     }
+    const refreshToolbox = () => {
+      const sourceType = selectedSpriteRef.current
+        ? getSourceTypeForSprite(selectedSpriteRef.current.type)
+        : "all";
+      workspace.updateToolbox(buildToolboxForSource(sourceType));
+    };
+    const unsubscribeExtensions = subscribeExtensionChanges(refreshToolbox);
     syncShadowColours(workspace);
 
     const flyoutWorkspace = getFlyoutWorkspace(workspace);
@@ -243,6 +251,7 @@ export default function BlocklyEditor() {
     return () => {
       toolboxObserver?.disconnect();
       observer.disconnect();
+      unsubscribeExtensions();
       workspace.removeChangeListener(handleWorkspaceChange);
       flyoutWorkspace?.removeChangeListener(handleWorkspaceChange);
       workspace.dispose();

@@ -236,15 +236,15 @@ function SpriteRenderer({
   const mediaData = isMediaData(sprite.data) ? sprite.data : null;
   const activeImage = mediaData
     ? (mediaData.images.find(
-        (image) => image.id === mediaData.currentImageId,
-      ) ?? mediaData.images[0])
+      (image) => image.id === mediaData.currentImageId,
+    ) ?? mediaData.images[0])
     : null;
 
   const videoData = isVideoData(sprite.data) ? sprite.data : null;
   const activeVideo = videoData
     ? (videoData.videos.find(
-        (v) => v.id === videoData.currentVideoId,
-      ) ?? videoData.videos[0])
+      (v) => v.id === videoData.currentVideoId,
+    ) ?? videoData.videos[0])
     : null;
 
   const mediaSrc = (activeImage?.src || activeVideo?.src) || "";
@@ -278,7 +278,7 @@ function SpriteRenderer({
       const onCanPlay = () => {
         video.removeEventListener("canplay", onCanPlay);
         if (mounted) {
-		  video.currentTime = 0;
+          video.currentTime = 0;
           setMediaElement(video);
           requestAnimationFrame(() => {
             nodeRef.current?.getLayer()?.batchDraw();
@@ -341,7 +341,7 @@ function SpriteRenderer({
             mediaElement.currentTime = rt.virtualTime / 1000;
           } else {
             const shouldPlay = videoShouldPlayRef.current && !isPaused;
-            if (shouldPlay && mediaElement.paused) mediaElement.play().catch(() => {});
+            if (shouldPlay && mediaElement.paused) mediaElement.play().catch(() => { });
             else if (!shouldPlay && !mediaElement.paused) mediaElement.pause();
           }
           nodeRef.current?.getLayer()?.batchDraw();
@@ -396,16 +396,16 @@ function SpriteRenderer({
     const height = node.height();
     const topLeft = snapToGrid
       ? snapTopLeftToGrid(
-          node.x() - width / 2,
-          node.y() - height / 2,
-          width,
-          height,
-          gridSize,
-        )
+        node.x() - width / 2,
+        node.y() - height / 2,
+        width,
+        height,
+        gridSize,
+      )
       : {
-          x: node.x() - width / 2,
-          y: node.y() - height / 2,
-        };
+        x: node.x() - width / 2,
+        y: node.y() - height / 2,
+      };
     if (snapToGrid) {
       node.x(topLeft.x);
       node.y(topLeft.y);
@@ -454,16 +454,16 @@ function SpriteRenderer({
 
     const topLeft = snapToGrid
       ? snapTopLeftToGrid(
-          node.x() - updatedWidth / 2,
-          node.y() - updatedHeight / 2,
-          updatedWidth,
-          updatedHeight,
-          gridSize,
-        )
+        node.x() - updatedWidth / 2,
+        node.y() - updatedHeight / 2,
+        updatedWidth,
+        updatedHeight,
+        gridSize,
+      )
       : {
-          x: node.x() - updatedWidth / 2,
-          y: node.y() - updatedHeight / 2,
-        };
+        x: node.x() - updatedWidth / 2,
+        y: node.y() - updatedHeight / 2,
+      };
     changes.x = fromCanvasX(topLeft.x + updatedWidth / 2);
     changes.y = fromCanvasY(topLeft.y + updatedHeight / 2);
     if (snapToGrid) {
@@ -1079,6 +1079,28 @@ export default function StageView() {
     }
   }, [dispatch]);
 
+  const pauseAllVideoElements = useCallback(
+    (options?: { resetTime?: boolean }) => {
+      for (const node of spriteNodeRefs.current.values()) {
+        const container = node as Konva.Container | undefined;
+        const imageNode = container?.findOne("Image") as Konva.Image | undefined;
+        const mediaElement = imageNode?.image() as HTMLVideoElement | null;
+
+        if (!mediaElement || typeof mediaElement.pause !== "function") {
+          continue;
+        }
+
+        try {
+          mediaElement.pause();
+          if (options?.resetTime) mediaElement.currentTime = 0;
+        } catch {
+          // ignore
+        }
+      }
+    },
+    [],
+  );
+
   const handlePlay = async (options?: { stepping?: boolean }) => {
     const generation = ++playGenerationRef.current;
     runtime.stop();
@@ -1429,7 +1451,7 @@ export default function StageView() {
               if (video) {
                 if (playing) {
                   video.muted = current.data.videoVolume === 0;
-                  video.play().catch(() => {});
+                  video.play().catch(() => { });
                 } else video.pause();
               }
               queuePlaybackStateUpdate(sprite.id, {
@@ -1533,11 +1555,14 @@ export default function StageView() {
 
   const handlePause = () => {
     if (!isPlaying) return;
+
     if (isPaused) {
       runtime.resume();
       setIsPaused(false);
       return;
     }
+
+    pauseAllVideoElements();
     runtime.pause();
     flushPlaybackStateUpdates();
     setIsPaused(true);
@@ -1547,14 +1572,9 @@ export default function StageView() {
     playGenerationRef.current++;
     setIsPlayingWithRef(false);
     setIsPaused(false);
-    runtime.stop();
 
-    document.querySelectorAll("video").forEach((v) => {
-      try {
-        v.pause();
-        v.currentTime = 0;
-      } catch (e) {}
-    });
+    pauseAllVideoElements({ resetTime: true });
+    runtime.stop();
 
     for (const ref of videoShouldPlayRefs.current.values()) {
       ref.current = false;
