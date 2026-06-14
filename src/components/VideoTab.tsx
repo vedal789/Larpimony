@@ -25,7 +25,7 @@ function VideoThumbnail({ src }: { src: string }) {
     const video = document.createElement("video");
     video.src = src;
     video.crossOrigin = "anonymous";
-    video.currentTime = 0.1; // Seek a bit to avoid black frame
+    video.currentTime = 0.1;
     video.muted = true;
     video.playsInline = true;
 
