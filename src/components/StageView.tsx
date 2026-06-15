@@ -93,6 +93,22 @@ function getFrameMs(fps: number): number {
   return 1000 / Math.max(1, fps);
 }
 
+function getFiniteNumber(value: unknown, fallback = 0): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function getVideoElementFromNode(
+  node: Konva.Node | null,
+): HTMLVideoElement | null {
+  if (!node || !(node instanceof KonvaCore.Container)) return null;
+
+  const imageNode = node.findOne("Image") as Konva.Image | undefined;
+  const media = imageNode?.image();
+
+  return media instanceof HTMLVideoElement ? media : null;
+}
+
 function parseHexColor(color: string): [number, number, number] | null {
   let hex = color.trim();
   if (!hex.startsWith("#")) hex = `#${hex}`;
@@ -1082,9 +1098,7 @@ export default function StageView() {
   const pauseAllVideoElements = useCallback(
     (options?: { resetTime?: boolean }) => {
       for (const node of spriteNodeRefs.current.values()) {
-        const container = node as Konva.Container | undefined;
-        const imageNode = container?.findOne("Image") as Konva.Image | undefined;
-        const mediaElement = imageNode?.image() as HTMLVideoElement | null;
+        const mediaElement = getVideoElementFromNode(node);
 
         if (!mediaElement || typeof mediaElement.pause !== "function") {
           continue;
@@ -1268,14 +1282,19 @@ export default function StageView() {
             return v?.name ?? "";
           }
           if (property === "videoDuration") {
-            const node = spriteNodeRefs.current.get(sprite.id) as Konva.Group;
-            const video = (node?.findOne("Image") as Konva.Image)?.image() as HTMLVideoElement;
-            return video?.duration || 0;
+            const video = getVideoElementFromNode(
+              spriteNodeRefs.current.get(sprite.id) ?? null,
+            );
+            return getFiniteNumber(video?.duration, 0);
           }
           if (property === "videoCurrentTime") {
-            const node = spriteNodeRefs.current.get(sprite.id) as Konva.Group;
-            const video = (node?.findOne("Image") as Konva.Image)?.image() as HTMLVideoElement;
-            return video?.currentTime || target.videoCurrentTime || 0;
+            const video = getVideoElementFromNode(
+              spriteNodeRefs.current.get(sprite.id) ?? null,
+            );
+            return getFiniteNumber(
+              video?.currentTime ?? 0,
+              (target.videoCurrentTime as number | undefined) ?? 0,
+            );
           }
           if (property === "sounds") {
             return current?.data.sounds ?? [];
@@ -1446,12 +1465,13 @@ export default function StageView() {
               target.videoPlaying = playing;
               const shouldPlayRef = videoShouldPlayRefs.current.get(sprite.id);
               if (shouldPlayRef) shouldPlayRef.current = playing;
-              const node = spriteNodeRefs.current.get(sprite.id) as Konva.Group;
-              const video = (node?.findOne("Image") as Konva.Image)?.image() as HTMLVideoElement;
+              const video = getVideoElementFromNode(
+                spriteNodeRefs.current.get(sprite.id) ?? null,
+              );
               if (video) {
                 if (playing) {
                   video.muted = current.data.videoVolume === 0;
-                  video.play().catch(() => { });
+                  video.play().catch(() => {});
                 } else video.pause();
               }
               queuePlaybackStateUpdate(sprite.id, {
@@ -1462,10 +1482,11 @@ export default function StageView() {
           }
           if (property === "videoPlaybackRate") {
             if (current && isVideoData(current.data)) {
-              const rate = Number(value);
+              const rate = getFiniteNumber(value, current.data.videoPlaybackRate ?? 1);
               target.videoPlaybackRate = rate;
-              const node = spriteNodeRefs.current.get(sprite.id) as Konva.Group;
-              const video = (node?.findOne("Image") as Konva.Image)?.image() as HTMLVideoElement;
+              const video = getVideoElementFromNode(
+                spriteNodeRefs.current.get(sprite.id) ?? null,
+              );
               if (video) video.playbackRate = rate;
               queuePlaybackStateUpdate(sprite.id, {
                 data: { ...current.data, videoPlaybackRate: rate },
@@ -1475,10 +1496,14 @@ export default function StageView() {
           }
           if (property === "videoVolume") {
             if (current && isVideoData(current.data)) {
-              const volume = Math.max(0, Math.min(1, Number(value)));
+              const volume = Math.max(
+                0,
+                Math.min(1, getFiniteNumber(value, current.data.videoVolume ?? 1)),
+              );
               target.videoVolume = volume;
-              const node = spriteNodeRefs.current.get(sprite.id) as Konva.Group;
-              const video = (node?.findOne("Image") as Konva.Image)?.image() as HTMLVideoElement;
+              const video = getVideoElementFromNode(
+                spriteNodeRefs.current.get(sprite.id) ?? null,
+              );
               if (video) {
                 video.volume = volume;
                 video.muted = volume === 0;
@@ -1493,8 +1518,9 @@ export default function StageView() {
             if (current && isVideoData(current.data)) {
               const loop = Boolean(value);
               target.videoLoop = loop;
-              const node = spriteNodeRefs.current.get(sprite.id) as Konva.Group;
-              const video = (node?.findOne("Image") as Konva.Image)?.image() as HTMLVideoElement;
+              const video = getVideoElementFromNode(
+                spriteNodeRefs.current.get(sprite.id) ?? null,
+              );
               if (video) video.loop = loop;
               queuePlaybackStateUpdate(sprite.id, {
                 data: { ...current.data, videoLoop: loop },
@@ -1504,10 +1530,14 @@ export default function StageView() {
           }
           if (property === "videoCurrentTime") {
             if (current && isVideoData(current.data)) {
-              const time = Number(value);
+              const time = Math.max(
+                0,
+                getFiniteNumber(value, current.data.videoCurrentTime ?? 0),
+              );
               target.videoCurrentTime = time;
-              const node = spriteNodeRefs.current.get(sprite.id) as Konva.Group;
-              const video = (node?.findOne("Image") as Konva.Image)?.image() as HTMLVideoElement;
+              const video = getVideoElementFromNode(
+                spriteNodeRefs.current.get(sprite.id) ?? null,
+              );
               if (video) video.currentTime = time;
               queuePlaybackStateUpdate(sprite.id, {
                 data: { ...current.data, videoCurrentTime: time },
