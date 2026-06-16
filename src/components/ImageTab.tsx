@@ -1,8 +1,7 @@
 import { useState } from "react";
-
 import "../styles/editor.css";
 import { useSprites } from "../lib/sprites";
-import { Plus } from "lucide-react";
+import { Plus, Trash2, Replace, ImageIcon } from "lucide-react";
 import {
   isMediaData,
   type MediaSpriteData,
@@ -16,34 +15,20 @@ const MENU_ID = "image-menu";
 export default function ImageTab() {
   const { state, dispatch } = useSprites();
   const sprite = state.sprites.find((s) => s.id === state.selectedSpriteId);
-  const [audioIDX, setAudioIDX] = useState(0);
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const { show } = useContextMenu({ id: MENU_ID });
 
   if (!sprite || !isMediaData(sprite.data)) {
     return (
-      <div
-        style={{
-          height: "100%",
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 50,
-          color: "var(--text-secondary)",
-          fontSize: "13px",
-          fontWeight: 500,
-          pointerEvents: "all",
-          textAlign: "center",
-          userSelect: "none",
-          boxSizing: "border-box",
-        }}
-      >
-        Only image sources are supported for the image tab
+      <div className="asset-empty-state">
+        <ImageIcon size={48} />
+        <p>Only image sources are supported for the image tab</p>
       </div>
     );
   }
 
-  const activeItem = sprite.data.images[audioIDX];
+  const activeItem = sprite.data.images[selectedIdx];
 
   const updateImage = (id: string, changes: Partial<MediaImage>) => {
     if (!sprite || !isMediaData(sprite.data)) return;
@@ -115,12 +100,12 @@ export default function ImageTab() {
       };
       imageElement.src = src;
 
-      if (!replaceId) setAudioIDX(newImages.length - 1);
+      if (!replaceId) setSelectedIdx(newImages.length - 1);
     };
     reader.readAsDataURL(file);
   };
 
-  const newImage = () => {
+  const handleAddImage = () => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*,.svg";
@@ -131,7 +116,7 @@ export default function ImageTab() {
     input.click();
   };
 
-  const replaceImage = (id: string) => {
+  const handleReplaceImage = (id: string) => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*,.svg";
@@ -142,78 +127,121 @@ export default function ImageTab() {
     input.click();
   };
 
+  const handleDeleteImage = (id: string) => {
+    if (!sprite || !isMediaData(sprite.data) || sprite.data.images.length <= 1) return;
+    const nextImages = sprite.data.images.filter((img) => img.id !== id);
+    dispatch({
+      type: "UPDATE_SPRITE",
+      id: sprite.id,
+      changes: {
+        data: {
+          ...sprite.data,
+          images: nextImages,
+          currentImageId: sprite.data.currentImageId === id ? nextImages[0].id : sprite.data.currentImageId
+        }
+      }
+    });
+    setSelectedIdx(0);
+  };
+
   return (
-    <div className="sound-tab">
-      <div className="sound-tab-side">
-        {sprite.data.images.map((s, i) => (
-          <button
-            key={s.id}
-            className={i === audioIDX ? "sound-tab-sound-selected" : "sound-tab-sound"}
-            onClick={() => setAudioIDX(i)}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              show({ event: e, props: { image: s } });
-            }}
-          >
-            <img src={s.src} style={{ aspectRatio: "1/1", width: "40px", height: "40px" }} />
-            <span>{s.name}</span>
-          </button>
-        ))}
-        <Menu id={MENU_ID}>
-          <Item onClick={(e) => {
-            const newName = prompt("New name?", e.props.image.name);
-            if (newName) updateImage(e.props.image.id, { name: newName });
-          }}>Rename</Item>
-          <Item onClick={(e) => replaceImage(e.props.image.id)}>Replace</Item>
-          {isMediaData(sprite.data) && sprite.data.images.length > 1 && (
-            <Item
-              onClick={(e) => {
-                if (!sprite || !isMediaData(sprite.data)) return;
-                const nextImages = sprite.data.images.filter((img: MediaImage) => img.id !== e.props.image.id);
-                dispatch({
-                  type: "UPDATE_SPRITE",
-                  id: sprite.id,
-                  changes: {
-                    data: {
-                      ...sprite.data,
-                      images: nextImages,
-                      currentImageId: sprite.data.currentImageId === e.props.image.id ? nextImages[0].id : sprite.data.currentImageId
-                    }
-                  }
-                });
-                setAudioIDX(0);
+    <div className="asset-tab">
+      <div className="asset-sidebar">
+        <div className="asset-list">
+          {sprite.data.images.map((img, i) => (
+            <div
+              key={img.id}
+              className={`asset-card ${i === selectedIdx ? "selected" : ""}`}
+              onClick={() => setSelectedIdx(i)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                show({ event: e, props: { image: img } });
               }}
-              style={{ color: "red" }}
             >
-              Delete
-            </Item>
-          )}
-        </Menu>
-        <button className="sound-tab-sound-new" onClick={newImage}>
-          <Plus style={{ height: "40px", width: "40px" }} />
-          <span>Add image</span>
-        </button>
+              <div className="asset-card-preview">
+                <img src={img.src} alt={img.name} />
+              </div>
+              <div className="asset-card-info">
+                {editingId === img.id ? (
+                  <input
+                    autoFocus
+                    className="asset-card-name-input"
+                    value={img.name}
+                    onChange={(e) => updateImage(img.id, { name: e.target.value })}
+                    onBlur={() => setEditingId(null)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") setEditingId(null);
+                      if (e.key === "Escape") setEditingId(null);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <span
+                    className="asset-card-name"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedIdx(i);
+                      setEditingId(img.id);
+                    }}
+                  >
+                    {img.name}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="asset-sidebar-footer">
+          <button className="add-sprite-btn" onClick={handleAddImage}>
+            <Plus size={14} /> Add Image
+          </button>
+        </div>
       </div>
-      <div className="sound-tab-editor">
-        {!activeItem ? (
-          <div style={{ display: "flex", width: "100%", height: "100%", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)" }}>
-            Select an image source to view and edit its images
-          </div>
-        ) : (
-          <div className="sound-tab-editor-inner">
-            <div className="properties-row" style={{ marginRight: "450px" }}>
-              <span className="properties-label">Name</span>
+
+      <div className="asset-editor">
+        {activeItem ? (
+          <>
+            <div className="asset-editor-header">
               <input
-                className="properties-input"
+                className="asset-editor-name-input"
                 type="text"
                 value={activeItem.name}
                 onChange={(e) => updateImage(activeItem.id, { name: e.target.value })}
               />
+              <div className="media-actions">
+                <button className="properties-btn" onClick={() => handleReplaceImage(activeItem.id)}>
+                  <Replace size={14} /> Replace
+                </button>
+                <button 
+                  className="properties-btn danger" 
+                  disabled={sprite.data.images.length <= 1}
+                  onClick={() => handleDeleteImage(activeItem.id)}
+                >
+                  <Trash2 size={14} /> Delete
+                </button>
+              </div>
             </div>
-            <img src={activeItem.src} style={{ aspectRatio: "1/1", width: "100%", height: "100%", objectFit: "contain" }} />
+            <div className="asset-editor-body">
+              <div className="asset-main-preview">
+                <img src={activeItem.src} alt={activeItem.name} />
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="asset-empty-state">
+            <p>Select an image to view and edit</p>
           </div>
         )}
       </div>
+
+      <Menu id={MENU_ID}>
+        <Item onClick={(e) => {
+          const newName = prompt("New name?", e.props.image.name);
+          if (newName) updateImage(e.props.image.id, { name: newName });
+        }}>Rename</Item>
+        <Item onClick={(e) => handleReplaceImage(e.props.image.id)}>Replace</Item>
+        <Item onClick={(e) => handleDeleteImage(e.props.image.id)} style={{ color: "var(--danger)" }}>Delete</Item>
+      </Menu>
     </div>
   );
 }

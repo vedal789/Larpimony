@@ -265,10 +265,10 @@ export default function VideoTab() {
           </div>
         ) : (
           <div className="sound-tab-editor-inner">
-            <div className="properties-row">
-              <span className="properties-label">Name</span>
+            <div className="properties-row" style={{ gap: 'var(--space-md)' }}>
+              <span className="properties-label" style={{ width: 'auto' }}>Name</span>
               <input
-                className="properties-input"
+                className="asset-editor-name-input"
                 type="text"
                 value={activeItem.name}
                 onChange={(e) => updateVideo(activeItem.id, { name: e.target.value })}

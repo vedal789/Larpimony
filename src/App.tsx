@@ -126,6 +126,18 @@ export default function App() {
   );
 
   useEffect(() => {
+    const unlock = () => {
+      runtime.unlockAudio();
+    };
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isDirty) return;
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();

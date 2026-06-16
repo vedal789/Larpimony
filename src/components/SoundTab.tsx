@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-
 import "../styles/editor.css";
 import { useSprites, generateMediaSoundId } from "../lib/sprites";
-import { AudioLines, PlayIcon, Plus, Square } from "lucide-react";
+import { AudioLines, Play, Square, Plus, Trash2, Replace, Volume2 } from "lucide-react";
 import { Menu, Item, useContextMenu } from "react-contexify";
 import runtime from "../lib/runtime";
 
@@ -20,12 +19,37 @@ function WaveformPreview({
   const [duration, setDuration] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0, dpr: 1 });
   const startRef = useRef(0);
   const rafRef = useRef<number | null>(null);
+  const cacheRef = useRef<{ bg: HTMLCanvasElement; fg: HTMLCanvasElement } | null>(null);
   const previewId = `preview_${soundId}`;
 
-  const BUCKETS = 240;
+  const BUCKETS = 300;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const updateSize = () => {
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+      setCanvasSize({
+        width: rect.width,
+        height: rect.height,
+        dpr: window.devicePixelRatio || 1,
+      });
+    };
+    const observer = new ResizeObserver(() => {
+      requestAnimationFrame(updateSize);
+    });
+    observer.observe(canvas);
+    window.addEventListener("resize", updateSize);
+    requestAnimationFrame(updateSize);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateSize);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,20 +58,18 @@ function WaveformPreview({
     if (!src) return;
     runtime.decodeAudio(src).then((buffer) => {
       if (cancelled || !buffer) return;
-      const channel = buffer.getChannelData(0);
-      const bucketSize = Math.max(1, Math.floor(channel.length / BUCKETS));
-      const result: number[] = [];
-      for (let i = 0; i < BUCKETS; i++) {
-        let peak = 0;
-        const start = i * bucketSize;
-        for (let j = 0; j < bucketSize && start + j < channel.length; j++) {
-          const v = Math.abs(channel[start + j]);
-          if (v > peak) peak = v;
+      const channelData = buffer.getChannelData(0);
+      const worker = new Worker(new URL("../lib/waveform.worker.ts", import.meta.url), { type: "module" });
+      worker.onmessage = (e) => {
+        if (cancelled) {
+          worker.terminate();
+          return;
         }
-        result.push(peak);
-      }
-      setPeaks(result);
-      setDuration(buffer.duration);
+        setPeaks(Array.from(e.data.peaks));
+        setDuration(buffer.duration);
+        worker.terminate();
+      };
+      worker.postMessage({ channelData, buckets: BUCKETS }, [channelData.buffer]);
     });
     return () => {
       cancelled = true;
@@ -55,54 +77,143 @@ function WaveformPreview({
   }, [src]);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const { width, height, dpr } = canvasSize;
+    if (width === 0 || height === 0 || peaks.length === 0) return;
 
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
+    const physicalWidth = width * dpr;
+    const physicalHeight = height * dpr;
 
-    canvas.width = Math.round(rect.width * dpr);
-    canvas.height = Math.round(rect.height * dpr);
-
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    const w = rect.width;
-    const h = rect.height;
-
-    ctx.clearRect(0, 0, w, h);
-    if (peaks.length === 0) return;
-
-    const barWidth = w / peaks.length;
-    for (let i = 0; i < peaks.length; i++) {
-      const played = i / peaks.length <= progress;
-      const barHeight = Math.max(2, peaks[i] * h * 0.92);
-      ctx.fillStyle = played ? "#7aa2f7" : "#3a3f55";
-      ctx.fillRect(
-        i * barWidth,
-        (h - barHeight) / 2,
-        Math.max(1, barWidth - 1),
-        barHeight,
-      );
+    if (!cacheRef.current) {
+      cacheRef.current = {
+        bg: document.createElement("canvas"),
+        fg: document.createElement("canvas"),
+      };
     }
-  }, [peaks, progress, canvasSize]);
+    const { bg, fg } = cacheRef.current;
+    bg.width = physicalWidth;
+    bg.height = physicalHeight;
+    fg.width = physicalWidth;
+    fg.height = physicalHeight;
+
+    const ctxBg = bg.getContext("2d")!;
+    const ctxFg = fg.getContext("2d")!;
+
+    const canvas = canvasRef.current!;
+    const style = getComputedStyle(canvas);
+    const accentColor = style.getPropertyValue("--accent").trim() || "#3e7ef5";
+    const surfaceColor = style.getPropertyValue("--bg-surface").trim() || "#38383f";
+
+    const hexToRgb = (hex: string) => {
+      const m = hex.replace("#", "").match(/.{1,2}/g);
+      if (!m) return { r: 62, g: 126, b: 245 };
+      const [r, g, b] = m.map((h) => parseInt(h, 16));
+      return { r, g, b };
+    };
+    const accentRgb = hexToRgb(accentColor);
+
+    const maxPeak = Math.max(0.0001, ...peaks);
+    const normalize = (v: number) => Math.pow(v / maxPeak, 0.65);
+    const barWidth = physicalWidth / peaks.length;
+    const gap = Math.max(1 * dpr, barWidth * 0.3);
+    const cornerRadius = Math.max(1, (barWidth - gap) / 2);
+    const centerY = physicalHeight / 2;
+
+    const playedGradient = ctxFg.createLinearGradient(0, 0, 0, physicalHeight);
+    playedGradient.addColorStop(0, `rgba(${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}, 0.55)`);
+    playedGradient.addColorStop(0.5, accentColor);
+    playedGradient.addColorStop(1, `rgba(${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}, 0.55)`);
+
+    const unplayedGradient = ctxBg.createLinearGradient(0, 0, 0, physicalHeight);
+    unplayedGradient.addColorStop(0, `${surfaceColor}99`);
+    unplayedGradient.addColorStop(0.5, surfaceColor);
+    unplayedGradient.addColorStop(1, `${surfaceColor}99`);
+
+    ctxBg.fillStyle = unplayedGradient;
+    ctxBg.beginPath();
+    for (let i = 0; i < peaks.length; i++) {
+      const x = i * barWidth;
+      const normalizedPeak = normalize(peaks[i]);
+      const barHeight = Math.max(2 * dpr, normalizedPeak * physicalHeight * 0.9);
+      const drawX = x + gap / 2;
+      const drawW = Math.max(0.5, barWidth - gap);
+      const drawY = centerY - barHeight / 2;
+      const radius = Math.min(cornerRadius, drawW / 2, barHeight / 2);
+      ctxBg.roundRect(drawX, drawY, drawW, barHeight, radius);
+    }
+    ctxBg.fill();
+
+    ctxFg.shadowColor = accentColor;
+    ctxFg.shadowBlur = 4 * dpr;
+    ctxFg.fillStyle = playedGradient;
+    ctxFg.beginPath();
+    for (let i = 0; i < peaks.length; i++) {
+      const x = i * barWidth;
+      const normalizedPeak = normalize(peaks[i]);
+      const barHeight = Math.max(2 * dpr, normalizedPeak * physicalHeight * 0.9);
+      const drawX = x + gap / 2;
+      const drawW = Math.max(0.5, barWidth - gap);
+      const drawY = centerY - barHeight / 2;
+      const radius = Math.min(cornerRadius, drawW / 2, barHeight / 2);
+      ctxFg.roundRect(drawX, drawY, drawW, barHeight, radius);
+    }
+    ctxFg.fill();
+  }, [peaks, canvasSize]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || canvasSize.width === 0 || canvasSize.height === 0 || !cacheRef.current) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-    const updateSize = () => {
-      const rect = canvas.getBoundingClientRect();
-      setCanvasSize({ width: rect.width, height: rect.height });
-    };
+    const { width, height, dpr } = canvasSize;
+    const physicalWidth = width * dpr;
+    const physicalHeight = height * dpr;
 
-    updateSize();
-    const observer = new ResizeObserver(updateSize);
-    observer.observe(canvas);
+    canvas.width = physicalWidth;
+    canvas.height = physicalHeight;
+    ctx.clearRect(0, 0, physicalWidth, physicalHeight);
 
-    return () => observer.disconnect();
-  }, []);
+    const style = getComputedStyle(canvas);
+    const accentColor = style.getPropertyValue("--accent").trim() || "#3e7ef5";
+    const surfaceColor = style.getPropertyValue("--bg-surface").trim() || "#38383f";
+    const centerY = physicalHeight / 2;
+
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    ctx.strokeStyle = surfaceColor;
+    ctx.lineWidth = Math.max(0.5, dpr * 0.5);
+    ctx.beginPath();
+    ctx.moveTo(0, centerY);
+    ctx.lineTo(physicalWidth, centerY);
+    ctx.stroke();
+    ctx.restore();
+
+    const { bg, fg } = cacheRef.current;
+    ctx.drawImage(bg, 0, 0);
+
+    const playedBoundaryX = progress * physicalWidth;
+    if (playedBoundaryX > 0) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, playedBoundaryX, physicalHeight);
+      ctx.clip();
+      ctx.drawImage(fg, 0, 0);
+      ctx.restore();
+    }
+
+    if (progress > 0 && progress < 1) {
+      ctx.save();
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = Math.max(1, dpr);
+      ctx.shadowColor = accentColor;
+      ctx.shadowBlur = 6 * dpr;
+      ctx.beginPath();
+      ctx.moveTo(playedBoundaryX, 0);
+      ctx.lineTo(playedBoundaryX, physicalHeight);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }, [peaks, progress, canvasSize]);
 
   useEffect(() => {
     if (playing) runtime.setSoundVolume(previewId, volume);
@@ -137,32 +248,21 @@ function WaveformPreview({
     });
   };
 
-  useEffect(
-    () => () => {
-      runtime.stopSound(previewId);
-      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-    },
-    [previewId],
-  );
+  useEffect(() => () => {
+    runtime.stopSound(previewId);
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+  }, [previewId]);
 
   return (
-    <div className="audio-preview">
-      <button
-        className="audio-editor-play"
-        onClick={play}
-        aria-label={playing ? "Stop" : "Play"}
-      >
-        {playing ? <Square /> : <PlayIcon />}
-      </button>
-      <canvas
-        ref={canvasRef}
-        className="audio-waveform"
-        style={{
-          width: "100%",
-          height: "90px",
-          display: "block",
-        }}
-      />
+    <div className="audio-main-preview">
+      <div className="audio-controls">
+        <button className="audio-play-btn" onClick={play}>
+          {playing ? <Square size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
+        </button>
+        <div className="audio-waveform-container">
+          <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block" }} />
+        </div>
+      </div>
     </div>
   );
 }
@@ -172,9 +272,11 @@ const MENU_ID = "sound-menu";
 export default function SoundTab() {
   const { state, dispatch } = useSprites();
   const sprite = state.sprites.find((s) => s.id === state.selectedSpriteId);
-  const [audioIDX, setAudioIDX] = useState(0);
-  const activeItem = sprite?.data.sounds[audioIDX];
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const activeItem = sprite?.data.sounds[selectedIdx];
   const { show } = useContextMenu({ id: MENU_ID });
+
   const updateSound = (id: string, changes: Record<string, unknown>) => {
     if (!sprite) return;
     dispatch({
@@ -184,68 +286,51 @@ export default function SoundTab() {
         data: {
           ...sprite.data,
           sounds: sprite.data.sounds.map((s, j) =>
-            j === audioIDX ? { ...s, ...changes } : s,
+            j === selectedIdx ? { ...s, ...changes } : s,
           ),
         },
       },
     });
   };
+
   const readSoundFile = (file: File, replace?: boolean, iId?: string) => {
     const reader = new FileReader();
     reader.onload = () => {
       const src = String(reader.result ?? "");
-      let id = "";
-      if (replace && iId) id = iId;
-      else id = generateMediaSoundId();
-      const newSounds = sprite!.data.sounds;
+      const id = (replace && iId) ? iId : generateMediaSoundId();
+      const currentSounds = [...(sprite?.data.sounds || [])];
+      
       if (!replace && !iId) {
-        newSounds?.push({
+        currentSounds.push({
           id,
-          name:
-            file.name.replace(/\.[^.]+$/, "") ||
-            "Sound" + (sprite?.data.sounds.length! + 1),
+          name: file.name.replace(/\.[^.]+$/, "") || "Sound " + (currentSounds.length + 1),
           src,
+          volume: 1,
         });
+        setSelectedIdx(currentSounds.length - 1);
       } else {
-        newSounds.map((s) => {
-          if (s.id === id) {
-            s.src = src;
-          }
-          return s;
-        });
+        const idx = currentSounds.findIndex(s => s.id === id);
+        if (idx !== -1) {
+          currentSounds[idx] = { ...currentSounds[idx], src, name: file.name.replace(/\.[^.]+$/, "") };
+        }
       }
-      // YO THIS SYSTEM HAS CAUSED ME SO MUCH PAIN
-      // i can tell,,, -dotun
-      if (sprite?.type === "media") {
-        dispatch({
-          type: "UPDATE_SPRITE",
-          id: sprite!.id,
-          changes: {
-            data: {
-              ...sprite!.data,
-              sounds: newSounds,
-              currentSoundId: id,
-            },
+
+      dispatch({
+        type: "UPDATE_SPRITE",
+        id: sprite!.id,
+        changes: {
+          data: {
+            ...sprite!.data,
+            sounds: currentSounds,
+            currentSoundId: id,
           },
-        });
-      } else {
-        dispatch({
-          type: "UPDATE_SPRITE",
-          id: sprite!.id,
-          changes: {
-            data: {
-              ...sprite!.data,
-              sounds: newSounds,
-              currentSoundId: id,
-            },
-          },
-        });
-      }
+        },
+      });
     };
     reader.readAsDataURL(file);
   };
 
-  const newSound = () => {
+  const handleAddSound = () => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "audio/*";
@@ -256,7 +341,7 @@ export default function SoundTab() {
     input.click();
   };
 
-  const replaceSound = (id: string) => {
+  const handleReplaceSound = (id: string) => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "audio/*";
@@ -266,157 +351,146 @@ export default function SoundTab() {
     };
     input.click();
   };
-  return (
-    <div className="sound-tab">
-      <div className="sound-tab-side">
-        {sprite?.data.sounds.map((s, i) => (
-          <button
-            key={i}
-            className={
-              i == audioIDX ? "sound-tab-sound-selected" : "sound-tab-sound"
-            }
-            onClick={() => {
-              setAudioIDX(i);
-            }}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              show({
-                event: e,
-                props: {
-                  soundIndex: i,
-                  sound: s,
-                },
-              });
-            }}
-          >
-            <AudioLines style={{ height: "40px", width: "40px" }} />
-            <span>{s.name}</span>
-          </button>
-        ))}
-        <Menu id={MENU_ID}>
-          <Item
-            onClick={(e) => {
-              const newName = prompt("What's the new name?");
-              if (!newName) return;
-              updateSound(e.props.sound.id, { name: newName });
-            }}
-          >
-            Quick rename
-          </Item>
-          <Item
-            onClick={(e) => {
-              replaceSound(e.props.sound.id);
-            }}
-          >
-            Quick replace
-          </Item>
-          {
-            //@ts-ignore
-            sprite?.data.sounds.length > 1 ? (
-              <Item
-                onClick={(e) => {
-                  let soundsRemoved = sprite!.data.sounds.filter(
-                    (i) => i.id !== e.props.sound.id,
-                  );
 
-                  dispatch({
-                    type: "UPDATE_SPRITE",
-                    id: sprite?.id as string,
-                    changes: {
-                      data: {
-                        ...sprite!.data,
-                        sounds: soundsRemoved,
-                      },
-                    },
-                  });
-                }}
-                style={{ color: "red", fontWeight: "bold" }}
-              >
-                Delete
-              </Item>
-            ) : null
-          }
-        </Menu>
-        <button
-          className="sound-tab-sound-new"
-          onClick={() => {
-            newSound();
-          }}
-        >
-          <Plus style={{ height: "40px", width: "40px" }} />
-          <span>Add sound</span>
-        </button>
+  const handleDeleteSound = (id: string) => {
+    if (!sprite || sprite.data.sounds.length <= 1) return;
+    const nextSounds = sprite.data.sounds.filter((s) => s.id !== id);
+    dispatch({
+      type: "UPDATE_SPRITE",
+      id: sprite.id,
+      changes: {
+        data: {
+          ...sprite.data,
+          sounds: nextSounds,
+          currentSoundId: sprite.data.currentSoundId === id ? nextSounds[0].id : sprite.data.currentSoundId
+        }
+      }
+    });
+    setSelectedIdx(0);
+  };
+
+  if (!sprite) return null;
+
+  return (
+    <div className="asset-tab">
+      <div className="asset-sidebar">
+        <div className="asset-list">
+          {sprite.data.sounds.map((s, i) => (
+            <div
+              key={s.id}
+              className={`asset-card ${i === selectedIdx ? "selected" : ""}`}
+              onClick={() => setSelectedIdx(i)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                show({ event: e, props: { sound: s } });
+              }}
+            >
+              <div className="asset-card-preview">
+                <AudioLines size={24} color="var(--text-secondary)" />
+              </div>
+              <div className="asset-card-info">
+                {editingId === s.id ? (
+                  <input
+                    autoFocus
+                    className="asset-card-name-input"
+                    value={s.name}
+                    onChange={(e) => updateSound(s.id, { name: e.target.value })}
+                    onBlur={() => setEditingId(null)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") setEditingId(null);
+                      if (e.key === "Escape") setEditingId(null);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <span
+                    className="asset-card-name"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedIdx(i);
+                      setEditingId(s.id);
+                    }}
+                  >
+                    {s.name}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="asset-sidebar-footer">
+          <button className="add-sprite-btn" onClick={handleAddSound}>
+            <Plus size={14} /> Add Sound
+          </button>
+        </div>
       </div>
-      <div className="sound-tab-editor">
-        {sprite == undefined || activeItem == undefined ? (
-          /* taken from blocklyeditor lol */
-          <div
-            style={{
-              display: "flex",
-              width: "100%",
-              height: "100%",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "var(--text-secondary)",
-              fontSize: "13px",
-              fontWeight: 500,
-              pointerEvents: "all",
-              textAlign: "center",
-              userSelect: "none",
-              boxSizing: "border-box",
-            }}
-          >
-            Select a source to view and edit its sounds or select a sound
-          </div>
-        ) : (
-          <div className="sound-tab-editor-inner">
-            <div className="properties-row" style={{ marginRight: "450px" }}>
-              <span className="properties-label">Name</span>
+
+      <div className="asset-editor">
+        {activeItem ? (
+          <>
+            <div className="asset-editor-header">
               <input
-                className="properties-input"
+                className="asset-editor-name-input"
                 type="text"
                 value={activeItem.name}
-                onChange={(e) => {
-                  updateSound(activeItem.id, { name: e.target.value });
-                }}
-                onBlur={() => {
-                  if (activeItem.name.trim() !== "") return;
-                  updateSound(activeItem.id, {
-                    name: "Sound " + (audioIDX + 1),
-                  });
-                }}
+                onChange={(e) => updateSound(activeItem.id, { name: e.target.value })}
               />
+              <div className="media-actions">
+                <button className="properties-btn" onClick={() => handleReplaceSound(activeItem.id)}>
+                  <Replace size={14} /> Replace
+                </button>
+                <button 
+                  className="properties-btn danger" 
+                  disabled={sprite.data.sounds.length <= 1}
+                  onClick={() => handleDeleteSound(activeItem.id)}
+                >
+                  <Trash2 size={14} /> Delete
+                </button>
+              </div>
             </div>
-
-            <div className="properties-row" style={{ marginRight: "450px" }}>
-              <span className="properties-label">Volume</span>
-              <input
-                className="properties-slider"
-                type="range"
-                min={0}
-                max={100}
-                step={1}
-                value={Math.round((activeItem.volume ?? 1) * 100)}
-                onChange={(e) => {
-                  updateSound(activeItem.id, {
-                    volume: Number(e.target.value) / 100,
-                  });
-                }}
+            <div className="asset-editor-body">
+              <WaveformPreview
+                key={activeItem.id}
+                src={activeItem.src}
+                soundId={activeItem.id}
+                volume={activeItem.volume ?? 1}
               />
-              <span className="properties-value">
-                {Math.round((activeItem.volume ?? 1) * 100)}%
-              </span>
+              <div className="asset-properties-grid">
+                <div className="properties-row">
+                  <span className="properties-label" style={{ width: '60px' }}>Volume</span>
+                  <Volume2 size={14} color="var(--text-muted)" />
+                  <input
+                    className="properties-slider"
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={Math.round((activeItem.volume ?? 1) * 100)}
+                    onChange={(e) => updateSound(activeItem.id, { volume: Number(e.target.value) / 100 })}
+                  />
+                  <span className="properties-value" style={{ minWidth: '32px' }}>
+                    {Math.round((activeItem.volume ?? 1) * 100)}%
+                  </span>
+                </div>
+              </div>
             </div>
-
-            <WaveformPreview
-              key={activeItem.id}
-              src={activeItem.src}
-              soundId={activeItem.id}
-              volume={activeItem.volume ?? 1}
-            />
+          </>
+        ) : (
+          <div className="asset-empty-state">
+            <AudioLines size={48} />
+            <p>Select a sound to view and edit</p>
           </div>
         )}
       </div>
+
+      <Menu id={MENU_ID}>
+        <Item onClick={(e) => {
+          const newName = prompt("New name?", e.props.sound.name);
+          if (newName) updateSound(e.props.sound.id, { name: newName });
+        }}>Rename</Item>
+        <Item onClick={(e) => handleReplaceSound(e.props.sound.id)}>Replace</Item>
+        <Item onClick={(e) => handleDeleteSound(e.props.sound.id)} style={{ color: "var(--danger)" }}>Delete</Item>
+      </Menu>
     </div>
   );
 }

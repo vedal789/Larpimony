@@ -179,6 +179,13 @@ class Runtime {
     return this.audioContext;
   }
 
+  unlockAudio() {
+    try {
+      const ctx = this.getAudioContext();
+      if (ctx.state === "suspended") ctx.resume().catch(() => {});
+    } catch { /* ignore */ }
+  }
+
   private getMasterGain() {
     const ctx = this.getAudioContext();
     if (!this.masterGain) {
@@ -199,14 +206,71 @@ class Runtime {
     });
   }
 
+  private decodeCtx: OfflineAudioContext | AudioContext | null = null;
+
+  private getDecodeContext() {
+    if (!this.decodeCtx) {
+      const OfflineCtx =
+        (window as unknown as { OfflineAudioContext?: typeof OfflineAudioContext })
+          .OfflineAudioContext ??
+        (window as unknown as { webkitOfflineAudioContext?: typeof OfflineAudioContext })
+          .webkitOfflineAudioContext;
+      this.decodeCtx = OfflineCtx
+        ? new OfflineCtx(1, 1, 44100)
+        : this.getAudioContext();
+    }
+    return this.decodeCtx;
+  }
+
+  private async resampleToContextRate(
+    buffer: AudioBuffer,
+  ): Promise<AudioBuffer> {
+    const existingCtx = this.audioContext;
+    if (!existingCtx) return buffer;
+    const targetRate = existingCtx.sampleRate;
+    if (buffer.sampleRate === targetRate) return buffer;
+
+    const OfflineCtx =
+      (window as unknown as { OfflineAudioContext?: typeof OfflineAudioContext })
+        .OfflineAudioContext ??
+      (window as unknown as { webkitOfflineAudioContext?: typeof OfflineAudioContext })
+        .webkitOfflineAudioContext;
+    if (!OfflineCtx) return buffer;
+
+    try {
+      const targetLength = Math.ceil(
+        (buffer.duration * targetRate),
+      );
+      const renderCtx = new OfflineCtx(
+        buffer.numberOfChannels,
+        targetLength,
+        targetRate,
+      );
+      const source = renderCtx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(renderCtx.destination);
+      source.start();
+      return await renderCtx.startRendering();
+    } catch (e) {
+      console.warn("Failed to resample audio buffer:", e);
+      return buffer;
+    }
+  }
+
   async decodeAudio(src: string): Promise<AudioBuffer | null> {
-    if (this.audioBufferCache.has(src)) return this.audioBufferCache.get(src)!;
+    const cached = this.audioBufferCache.get(src);
+    if (cached) {
+      const resampled = await this.resampleToContextRate(cached);
+      if (resampled !== cached) this.audioBufferCache.set(src, resampled);
+      return resampled;
+    }
 
     try {
       const response = await fetch(src);
       const arrayBuffer = await response.arrayBuffer();
-      const audioBuffer =
-        await this.getAudioContext().decodeAudioData(arrayBuffer);
+      const decoded =
+        await this.getDecodeContext().decodeAudioData(arrayBuffer);
+      const audioBuffer = await this.resampleToContextRate(decoded);
       this.audioBufferCache.set(src, audioBuffer);
       return audioBuffer;
     } catch (e) {
@@ -663,6 +727,11 @@ class Runtime {
   ): Promise<void> {
     if (this.stopped || !src) return;
 
+    try {
+      const ctx = this.getAudioContext();
+      if (ctx.state === "suspended" && !this.paused) ctx.resume().catch(() => {});
+    } catch { /* ignore */ }
+
     const volume = this.soundVolumes.get(id) ?? clamp01(baseVolume);
     const rate = this.soundRates.get(id) ?? 1;
 
@@ -696,7 +765,13 @@ class Runtime {
     volume: number = 1,
   ): Promise<void> {
     if (!src) return;
-    return this.playLive(src, id, false, clamp01(volume), 1);
+
+    try {
+      const ctx = this.getAudioContext();
+      if (ctx.state === "suspended") ctx.resume().catch(() => {});
+    } catch { /* ignore */ }
+
+    return this.playLive(src, id, false, clamp01(volume), 1, true);
   }
 
   private async playLive(
@@ -705,11 +780,12 @@ class Runtime {
     loop: boolean,
     volume: number,
     rate: number,
+    ignoreStopped: boolean = false,
   ): Promise<void> {
     const epoch = this.epoch;
     const buffer = await this.decodeAudio(src);
     if (!buffer) return;
-    if (this.stopped || this.epoch !== epoch) return;
+    if (!ignoreStopped && (this.stopped || this.epoch !== epoch)) return;
 
     let ctx: AudioContext;
     let master: GainNode;
@@ -722,7 +798,11 @@ class Runtime {
     }
 
     if (ctx.state === "suspended" && !this.paused) {
-      ctx.resume().catch(() => {});
+      try {
+        await ctx.resume();
+      } catch {
+        /* ignore */
+      }
     }
 
     const source = ctx.createBufferSource();
@@ -1136,6 +1216,12 @@ class Runtime {
     this.stopped = false;
     this.paused = false;
     this.lastFrameTime = performance.now();
+
+    try {
+      const ctx = this.getAudioContext();
+      if (ctx.state === "suspended") await ctx.resume();
+    } catch { /* ignore */ }
+
     const myEpoch = this.runEpoch;
     const compiled = this.compile();
     this.clearHandlers();
