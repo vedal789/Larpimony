@@ -137,6 +137,8 @@ class Runtime {
   private fps = 60;
   private paused = false;
   private pauseResolvers = new Set<() => void>();
+  private pausedAt = 0;
+  private totalPausedMs = 0;
   private pendingDelayEntries = new Set<PendingDelay>();
   private frameWaiters = new Set<FrameWaiter>();
   private frameRafId: number | null = null;
@@ -371,7 +373,7 @@ class Runtime {
 
   now() {
     if (this.isStepping) return this.virtualTime;
-    return performance.now();
+    return performance.now() - this.totalPausedMs - (this.paused ? performance.now() - this.pausedAt : 0);
   }
 
   enableStepping() {
@@ -410,7 +412,9 @@ class Runtime {
   pause() {
     if (this.stopped || this.paused) return;
     this.paused = true;
+    this.pausedAt = performance.now();
     this.audioContext?.suspend().catch(() => {});
+    this.cancelFrameTick();
     for (const entry of this.pendingDelayEntries) {
       clearTimeout(entry.timeoutId);
       entry.cleanup();
@@ -422,12 +426,17 @@ class Runtime {
 
   resume() {
     if (this.stopped || !this.paused) return;
+    this.totalPausedMs += performance.now() - this.pausedAt;
     this.paused = false;
+    this.lastFrameTime = performance.now();
     this.audioContext?.resume().catch(() => {});
     for (const resolve of this.pauseResolvers) {
       resolve();
     }
     this.pauseResolvers.clear();
+    if (this.frameWaiters.size > 0) {
+      this.scheduleFrameTick();
+    }
   }
 
   private waitForResume(): Promise<void> {
@@ -580,15 +589,14 @@ class Runtime {
   stop() {
     this.stopped = true;
     this.paused = false;
+    this.pausedAt = 0;
+    this.totalPausedMs = 0;
     this.epoch++;
     for (const id of this.activeTimeouts) {
       clearTimeout(id);
     }
     this.activeTimeouts.clear();
-    this.stopAllSounds();
-    this.activePlayingSounds.clear();
-    this.resetAudioState();
-    this.nextMonitoringTime = 0;
+    this.teardownAudio();
     this.cancelFrameTick();
     for (const waiter of this.frameWaiters) {
       waiter.reject(new StopError());
@@ -630,6 +638,21 @@ class Runtime {
         // ignore
       }
     }
+  }
+
+  private teardownAudio() {
+    this.stopAllSounds();
+    this.activePlayingSounds.clear();
+    if (this.masterGain) {
+      try { this.masterGain.disconnect(); } catch { /* ignore */ }
+      this.masterGain = null;
+    }
+    if (this.audioContext) {
+      try { this.audioContext.close(); } catch { /* ignore */ }
+      this.audioContext = null;
+    }
+    this.resetAudioState();
+    this.nextMonitoringTime = 0;
   }
 
   async playSound(
@@ -683,8 +706,10 @@ class Runtime {
     volume: number,
     rate: number,
   ): Promise<void> {
+    const epoch = this.epoch;
     const buffer = await this.decodeAudio(src);
     if (!buffer) return;
+    if (this.stopped || this.epoch !== epoch) return;
 
     let ctx: AudioContext;
     let master: GainNode;
@@ -954,13 +979,6 @@ class Runtime {
     while (true) {
       if (this.isStopped()) return;
 
-      while (this.paused) {
-        const pauseStart = performance.now();
-        await this.waitForResume();
-        startTime += performance.now() - pauseStart;
-        if (this.isStopped()) return;
-      }
-
       const linearT = Math.min(1, (this.now() - startTime) / durationMs);
       for (const [property, targetValue] of entries) {
         const easedT = applyTweenMode(linearT, modes[property]);
@@ -1042,6 +1060,11 @@ class Runtime {
         return;
       }
 
+      if (this.paused) {
+        this.scheduleFrameTick();
+        return;
+      }
+
       const stepMs = this.getStepMs();
       if (timestamp + 0.25 < this.lastFrameTime + stepMs) {
         this.scheduleFrameTick();
@@ -1112,9 +1135,6 @@ class Runtime {
     this.runEpoch = this.epoch;
     this.stopped = false;
     this.paused = false;
-    if (!this.isStepping) {
-      this.audioContext?.resume().catch(() => {});
-    }
     this.lastFrameTime = performance.now();
     const myEpoch = this.runEpoch;
     const compiled = this.compile();
