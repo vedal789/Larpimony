@@ -13,6 +13,8 @@
     "windows": [
       {
         "title": "Antimony Editor",
+        "url": "index.html",
+        "devtools": true,
         "width": 800,
         "height": 600,
         "resizable": true,

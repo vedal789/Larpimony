@@ -15,7 +15,8 @@ export default defineConfig({
       ),
     },
   },
-  base: process.env.NODE_ENV === "production" ? "/editor/" : "/",
+  base: "/",
+  base: "./",
   build: {
     rollupOptions: {
       output: {
