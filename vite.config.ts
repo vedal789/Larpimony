@@ -16,6 +16,7 @@ export default defineConfig({
     },
   },
   base: "/",
+<<<<<<< HEAD
   base: "./",
 =======
 >>>>>>> c009550124d3c31f2534d4be8be019301c15b93c
