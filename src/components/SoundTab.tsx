@@ -69,7 +69,10 @@ function WaveformPreview({
         setDuration(buffer.duration);
         worker.terminate();
       };
-      worker.postMessage({ channelData, buckets: BUCKETS }, [channelData.buffer]);
+      worker.postMessage({
+        channelData: new Float32Array(channelData),
+        buckets: BUCKETS,
+      });
     });
     return () => {
       cancelled = true;

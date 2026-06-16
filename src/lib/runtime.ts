@@ -180,10 +180,23 @@ class Runtime {
   }
 
   unlockAudio() {
+    void this.ensureAudioRunning();
+  }
+
+  private isUsableAudioBuffer(buffer: AudioBuffer): boolean {
+    return buffer.length > 0 && buffer.duration > 0;
+  }
+
+  private async ensureAudioRunning(): Promise<AudioContext | null> {
     try {
       const ctx = this.getAudioContext();
-      if (ctx.state === "suspended") ctx.resume().catch(() => {});
-    } catch { /* ignore */ }
+      if (ctx.state === "suspended") {
+        await ctx.resume();
+      }
+      return ctx;
+    } catch {
+      return null;
+    }
   }
 
   private getMasterGain() {
@@ -249,7 +262,7 @@ class Runtime {
       const source = renderCtx.createBufferSource();
       source.buffer = buffer;
       source.connect(renderCtx.destination);
-      source.start();
+      source.start(0);
       return await renderCtx.startRendering();
     } catch (e) {
       console.warn("Failed to resample audio buffer:", e);
@@ -260,17 +273,25 @@ class Runtime {
   async decodeAudio(src: string): Promise<AudioBuffer | null> {
     const cached = this.audioBufferCache.get(src);
     if (cached) {
-      const resampled = await this.resampleToContextRate(cached);
-      if (resampled !== cached) this.audioBufferCache.set(src, resampled);
-      return resampled;
+      if (!this.isUsableAudioBuffer(cached)) {
+        this.audioBufferCache.delete(src);
+      } else {
+        const resampled = await this.resampleToContextRate(cached);
+        if (resampled !== cached) this.audioBufferCache.set(src, resampled);
+        return resampled;
+      }
     }
 
     try {
       const response = await fetch(src);
       const arrayBuffer = await response.arrayBuffer();
-      const decoded =
-        await this.getDecodeContext().decodeAudioData(arrayBuffer);
+      const decoded = await this.getDecodeContext().decodeAudioData(
+        arrayBuffer.slice(0),
+      );
       const audioBuffer = await this.resampleToContextRate(decoded);
+      if (!this.isUsableAudioBuffer(audioBuffer)) {
+        return null;
+      }
       this.audioBufferCache.set(src, audioBuffer);
       return audioBuffer;
     } catch (e) {
@@ -727,10 +748,7 @@ class Runtime {
   ): Promise<void> {
     if (this.stopped || !src) return;
 
-    try {
-      const ctx = this.getAudioContext();
-      if (ctx.state === "suspended" && !this.paused) ctx.resume().catch(() => {});
-    } catch { /* ignore */ }
+    await this.ensureAudioRunning();
 
     const volume = this.soundVolumes.get(id) ?? clamp01(baseVolume);
     const rate = this.soundRates.get(id) ?? 1;
@@ -766,10 +784,7 @@ class Runtime {
   ): Promise<void> {
     if (!src) return;
 
-    try {
-      const ctx = this.getAudioContext();
-      if (ctx.state === "suspended") ctx.resume().catch(() => {});
-    } catch { /* ignore */ }
+    await this.ensureAudioRunning();
 
     return this.playLive(src, id, false, clamp01(volume), 1, true);
   }
@@ -784,13 +799,13 @@ class Runtime {
   ): Promise<void> {
     const epoch = this.epoch;
     const buffer = await this.decodeAudio(src);
-    if (!buffer) return;
+    if (!buffer || !this.isUsableAudioBuffer(buffer)) return;
     if (!ignoreStopped && (this.stopped || this.epoch !== epoch)) return;
 
     let ctx: AudioContext;
     let master: GainNode;
     try {
-      ctx = this.getAudioContext();
+      ctx = (await this.ensureAudioRunning()) ?? this.getAudioContext();
       master = this.getMasterGain();
     } catch (e) {
       console.warn("audio playback unavailable:", e);
@@ -801,7 +816,6 @@ class Runtime {
       try {
         await ctx.resume();
       } catch {
-        /* ignore */
       }
     }
 
@@ -1218,8 +1232,8 @@ class Runtime {
     this.lastFrameTime = performance.now();
 
     try {
-      const ctx = this.getAudioContext();
-      if (ctx.state === "suspended") await ctx.resume();
+      const ctx = await this.ensureAudioRunning();
+      if (!ctx || ctx.state !== "running") return;
     } catch { /* ignore */ }
 
     const myEpoch = this.runEpoch;
