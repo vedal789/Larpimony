@@ -1487,6 +1487,46 @@ body {
   animation: spin-slow 2s linear infinite;
 }
 
+.browser-compat-modal {
+  max-width: 480px;
+  width: 90%;
+}
+
+.browser-compat-modal-body {
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.browser-compat-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.browser-compat-warning p {
+  margin: 0;
+}
+
+.browser-compat-suggestion {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.browser-compat-dismiss-btn {
+  align-self: flex-end;
+}
+
 .credits-modal {
   max-width: 460px;
   width: 90%;

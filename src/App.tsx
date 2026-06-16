@@ -17,8 +17,13 @@ import HeaderBar from "./components/HeaderBar";
 import SpritePanel from "./components/SpritePanel";
 import StageView from "./components/StageView";
 import PropertiesPanel from "./components/PropertiesPanel";
+import BrowserCompatibilityModal from "./components/BrowserCompatibilityModal";
 import CreditsModal from "./components/CreditsModal";
 import SettingsModal from "./components/SettingsModal";
+import {
+  dismissBrowserCompatWarning,
+  shouldShowBrowserCompatWarning,
+} from "./lib/browser";
 import runtime from "./lib/runtime";
 import { serializeProject, deserializeProject } from "./lib/projectFormat";
 import {
@@ -35,7 +40,7 @@ import ExtensionMenu from "./components/ExtensionMenu";
 hljs.registerLanguage("javascript", javascript);
 
 const MODAL_EXIT_MS = 120;
-type ModalKey = "js" | "credits" | "settings";
+type ModalKey = "js" | "credits" | "settings" | "browserCompat";
 
 export default function App() {
   const [state, dispatch] = useReducer(spriteReducer, initialSpriteState);
@@ -47,12 +52,16 @@ export default function App() {
   );
   const [showCredits, setShowCredits] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showBrowserCompat, setShowBrowserCompat] = useState(
+    shouldShowBrowserCompatWarning,
+  );
   const [isDirty, setIsDirty] = useState(false);
   const [closingModals, setClosingModals] = useState<Record<ModalKey, boolean>>(
     {
       js: false,
       credits: false,
       settings: false,
+      browserCompat: false,
     },
   );
   const [showExtMenu, setShowExtMenu] = useState(false);
@@ -202,6 +211,11 @@ export default function App() {
     return generatedJS.split("\n").map((_, i) => i + 1);
   }, [generatedJS]);
 
+  const handleCloseBrowserCompat = useCallback(() => {
+    dismissBrowserCompatWarning();
+    closeModal("browserCompat", setShowBrowserCompat);
+  }, [closeModal]);
+
   return (
     <SpriteContext.Provider value={{ state, dispatch: dispatchTracked }}>
       <ProjectSettingsContext.Provider
@@ -239,6 +253,13 @@ export default function App() {
             </div>
           </div>
         </div>
+
+        {showBrowserCompat && (
+          <BrowserCompatibilityModal
+            isClosing={closingModals.browserCompat}
+            onClose={handleCloseBrowserCompat}
+          />
+        )}
 
         {showCredits && (
           <CreditsModal
