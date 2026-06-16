@@ -37,7 +37,7 @@
     "@blockly/field-angle": "^6.0.9",
     "@blockly/field-colour": "^6.0.12",
     "@jaames/iro": "^5.5.2",
-    "blockly": "^12.5.1",
+    "blockly": "^13.0.0",
     "blockly-field-color-wheel": "^1.0.5",
     "highlight.js": "^11.11.1",
     "konva": "^10.3.0",

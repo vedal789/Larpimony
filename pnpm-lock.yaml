@@ -10,19 +10,19 @@ importers:
     dependencies:
       '@blockly/field-angle':
         specifier: ^6.0.9
-        version: 6.0.9(blockly@12.5.1)
+        version: 6.0.9(blockly@13.0.0(jsdom@26.1.0))
       '@blockly/field-colour':
         specifier: ^6.0.12
-        version: 6.0.12(blockly@12.5.1)
+        version: 6.0.12(blockly@13.0.0(jsdom@26.1.0))
       '@jaames/iro':
         specifier: ^5.5.2
         version: 5.5.2
       blockly:
-        specifier: ^12.5.1
-        version: 12.5.1
+        specifier: ^13.0.0
+        version: 13.0.0(jsdom@26.1.0)
       blockly-field-color-wheel:
         specifier: ^1.0.5
-        version: 1.0.5(blockly@12.5.1)
+        version: 1.0.5(blockly@13.0.0(jsdom@26.1.0))
       highlight.js:
         specifier: ^11.11.1
         version: 11.11.1
@@ -685,9 +685,11 @@ packages:
     peerDependencies:
       blockly: '>=3'
 
-  blockly@12.5.1:
-    resolution: {integrity: sha512-etXLpUtEkcRibHGwIJ4BsvnIzMJJs0C0yPIjE/W0NCtj8ACha/a7Q9n7Ib6+j7N4EzQ0p28YPZMnypi5pNIj1g==}
-    engines: {node: '>=18'}
+  blockly@13.0.0:
+    resolution: {integrity: sha512-A5sj35fOgVAaEGqgrZftcKv0LxFKOnAQ7BA9uAlXrEQAiJuaKer59QJzmjwhYXiJzrR4fZfF6CQ6gpRr7PIcaQ==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      jsdom: ^27.4.0
 
   brace-expansion@5.0.6:
     resolution: {integrity: sha512-kLpxurY4Z4r9sgMsyG0Z9uzsBlgiU/EFKhj/h91/8yHu0edo7XuixOIH3VcJ8kkxs6/jPzoI6U9Vj3WqbMQ94g==}
@@ -1581,18 +1583,18 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@blockly/field-angle@6.0.9(blockly@12.5.1)':
+  '@blockly/field-angle@6.0.9(blockly@13.0.0(jsdom@26.1.0))':
     dependencies:
-      blockly: 12.5.1
+      blockly: 13.0.0(jsdom@26.1.0)
 
-  '@blockly/field-colour@6.0.12(blockly@12.5.1)':
+  '@blockly/field-colour@6.0.12(blockly@13.0.0(jsdom@26.1.0))':
     dependencies:
-      '@blockly/field-grid-dropdown': 6.0.10(blockly@12.5.1)
-      blockly: 12.5.1
+      '@blockly/field-grid-dropdown': 6.0.10(blockly@13.0.0(jsdom@26.1.0))
+      blockly: 13.0.0(jsdom@26.1.0)
 
-  '@blockly/field-grid-dropdown@6.0.10(blockly@12.5.1)':
+  '@blockly/field-grid-dropdown@6.0.10(blockly@13.0.0(jsdom@26.1.0))':
     dependencies:
-      blockly: 12.5.1
+      blockly: 13.0.0(jsdom@26.1.0)
 
   '@csstools/color-helpers@5.1.0': {}
 
@@ -2007,19 +2009,14 @@ snapshots:
 
   baseline-browser-mapping@2.10.33: {}
 
-  blockly-field-color-wheel@1.0.5(blockly@12.5.1):
+  blockly-field-color-wheel@1.0.5(blockly@13.0.0(jsdom@26.1.0)):
     dependencies:
       '@jaames/iro': 5.5.2
-      blockly: 12.5.1
+      blockly: 13.0.0(jsdom@26.1.0)
 
-  blockly@12.5.1:
+  blockly@13.0.0(jsdom@26.1.0):
     dependencies:
       jsdom: 26.1.0
-    transitivePeerDependencies:
-      - bufferutil
-      - canvas
-      - supports-color
-      - utf-8-validate
 
   brace-expansion@5.0.6:
     dependencies:
