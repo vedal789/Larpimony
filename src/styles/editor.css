@@ -1080,6 +1080,8 @@ body {
   justify-content: center;
   z-index: 1000;
   animation: modal-overlay-in 0.1s ease-out;
+  overflow-y: auto;
+  padding: var(--space-lg);
 }
 
 .modal-overlay.is-closing {
@@ -1093,13 +1095,15 @@ body {
   border-radius: var(--radius-lg);
   width: 80%;
   max-width: 800px;
-  max-height: 80%;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow-float);
   transform-origin: center;
   will-change: transform, opacity;
   animation: modal-zoom-in 0.14s cubic-bezier(0.2, 0.9, 0.2, 1);
+  overflow-y: auto;
+  flex-shrink: 0;
 }
 
 .modal-overlay.is-closing .modal-content {
@@ -2654,7 +2658,7 @@ body {
 
 .welcome-presets-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: var(--space-sm);
 }
 
