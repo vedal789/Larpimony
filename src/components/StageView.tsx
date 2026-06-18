@@ -810,6 +810,8 @@ export default function StageView() {
         }
       };
 
+      await runtime.preloadSounds();
+
       let finished = false;
       const playPromise = handlePlay({ stepping: true });
       playPromise.then(() => {
