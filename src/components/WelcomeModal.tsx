@@ -10,6 +10,55 @@ interface WelcomeModalProps {
 
 const FPS_PRESETS = [30, 60, 120, 144, 240];
 
+const SUBTITLES = [
+  "What do you want to create today?",
+  "Let's make something great.",
+  "Ready when you are.",
+  "Time to bring an idea to life.",
+  "What's the vision?",
+];
+
+const NIGHT_GREETINGS = [
+  "Good night!",
+  "Late night session?",
+  "Still up?",
+];
+
+const MORNING_GREETINGS = [
+  "Good morning!",
+  "Morning!",
+  "Rise and create.",
+];
+
+const AFTERNOON_GREETINGS = [
+  "Good afternoon!",
+  "Afternoon!",
+];
+
+const EVENING_GREETINGS = [
+  "Good evening!",
+  "Evening!",
+  "Winding down or just getting started?",
+];
+
+function getTimeGreeting() {
+  const hour = new Date().getHours();
+  const greetings =
+    hour < 5
+      ? NIGHT_GREETINGS
+      : hour < 12
+      ? MORNING_GREETINGS
+      : hour < 18
+      ? AFTERNOON_GREETINGS
+      : EVENING_GREETINGS;
+  return greetings[Math.floor(Math.random() * greetings.length)];
+}
+
+function pickSubtitle() {
+  const pool = [...SUBTITLES, getTimeGreeting()];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 export default function WelcomeModal({
   isClosing = false,
   onClose,
@@ -18,6 +67,7 @@ export default function WelcomeModal({
 }: WelcomeModalProps) {
   const [settings, setSettings] = useState<ProjectSettings>(initialSettings);
   const [projectName, setProjectName] = useState(initialProjectName);
+  const [subtitle] = useState(pickSubtitle);
 
   const colors = ["#fdc700", "#ff6467", "#51a2ff"];
   const title = "ANTIMONY";
@@ -49,7 +99,7 @@ export default function WelcomeModal({
               </span>
             ))}
           </h1>
-          <p className="welcome-subtitle-bottom">What do you want to create today?</p>
+          <p className="welcome-subtitle-bottom">{subtitle}</p>
         </div>
 
         <div className="welcome-modal-body">
