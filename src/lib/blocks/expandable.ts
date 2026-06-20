@@ -12,7 +12,7 @@ export type ExpandableShadow = {
 
 export type ExpandableValueBlockOptions = {
   type: string;
-  style: string;
+  style?: string;
   output?: string | string[] | null;
   outputShape?: number;
   previousStatement?: string | string[] | null;
@@ -74,7 +74,7 @@ function getShadow(
 }
 
 export function defineExpandableValueBlock(
-  options: ExpandableValueBlockOptions,
+  options: ExpandableValueBlockOptions & { color?: string },
 ) {
   const inputPrefix = options.inputPrefix ?? "ADD";
   const minItemCount = options.minItemCount ?? 0;
@@ -85,7 +85,11 @@ export function defineExpandableValueBlock(
     init: function (this: ExpandableBlock) {
       this.itemCount_ = initialItemCount;
       this.setInputsInline(true);
-      this.setStyle(options.style);
+      if (options.color) {
+        this.setColour(options.color);
+      } else if (options.style) {
+        this.setStyle(options.style);
+      }
       if (options.output !== undefined) this.setOutput(true, options.output);
       if (options.outputShape !== undefined) {
         (this as Blockly.Block & { setOutputShape?: (shape: number) => void })

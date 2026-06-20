@@ -1,6 +1,7 @@
 import * as Blockly from "blockly/core";
 import { javascriptGenerator, Order } from "blockly/javascript";
 import { ExtensionBridge } from "./bridge";
+import { defineExpandableValueBlock } from "../blocks/expandable";
 import type {
   ExtensionBlockDef,
   ExtensionBlockType,
@@ -67,14 +68,14 @@ export function subscribeExtensionChanges(listener: () => void) {
 export function clearExtensions() {
   extensionBridges.forEach((bridge) => bridge.terminate());
   extensionBridges.clear();
-  
+
   for (const key in extensionHandlers) {
     delete extensionHandlers[key];
   }
-  
+
   activeExtensions.length = 0;
   categoryEntries.length = 0;
-  
+
   emitExtensionChange();
 }
 
@@ -255,57 +256,77 @@ function registerBlocks(
     const blockType = `${id}_${blockDef.id}`;
     blockDefs[blockType] = blockDef;
 
-    Blockly.Blocks[blockType] = {
-      init: function () {
-        textToBlock(this, blockDef.text, blockDef.fields);
+    if (blockDef.expandable) {
+      defineExpandableValueBlock({
+        type: blockType,
+        color: blockDef.color ?? categoryColor,
+        output: blockDef.outputType,
+        outputShape: blockDef.outputShape,
+        previousStatement: blockDef.statementType,
+        nextStatement: blockDef.statementType,
+        initialItemCount: blockDef.initialItemCount,
+        minItemCount: blockDef.minItemCount,
+        maxItemCount: blockDef.maxItemCount,
+        inputPrefix: blockDef.inputPrefix,
+        emptyLabel: blockDef.emptyLabel,
+        firstInputLabel: blockDef.firstInputLabel,
+        inputCheck: blockDef.inputCheck,
+        shadow: blockDef.shadow,
+        tooltip: blockDef.tooltip,
+      });
+    } else {
+      Blockly.Blocks[blockType] = {
+        init: function () {
+          textToBlock(this, blockDef.text, blockDef.fields);
 
-        switch (blockDef.type) {
-          case "statement":
-            this.setPreviousStatement(
-              true,
-              blockDef.statementType ?? "default",
-            );
-            this.setNextStatement(true, blockDef.statementType ?? "default");
-            break;
-          case "cap":
-            this.setPreviousStatement(
-              true,
-              blockDef.statementType ?? "default",
-            );
-            break;
-          case "output":
-            this.setOutput(true, blockDef.outputType ?? null);
-            if (blockDef.outputShape) {
-              (this as Blockly.Block & { setOutputShape?: (shape: number) => void })
-                .setOutputShape?.(blockDef.outputShape);
-            }
-            break;
-          case "dual":
-            this.setPreviousStatement(
-              true,
-              blockDef.statementType ?? "default",
-            );
-            this.setNextStatement(true, blockDef.statementType ?? "default");
-            this.setOutput(true, blockDef.outputType ?? null);
-            if (blockDef.outputShape) {
-              (this as Blockly.Block & { setOutputShape?: (shape: number) => void })
-                .setOutputShape?.(blockDef.outputShape);
-            }
-            break;
-        }
+          switch (blockDef.type) {
+            case "statement":
+              this.setPreviousStatement(
+                true,
+                blockDef.statementType ?? "default",
+              );
+              this.setNextStatement(true, blockDef.statementType ?? "default");
+              break;
+            case "cap":
+              this.setPreviousStatement(
+                true,
+                blockDef.statementType ?? "default",
+              );
+              break;
+            case "output":
+              this.setOutput(true, blockDef.outputType ?? null);
+              if (blockDef.outputShape) {
+                (this as Blockly.Block & { setOutputShape?: (shape: number) => void })
+                  .setOutputShape?.(blockDef.outputShape);
+              }
+              break;
+            case "dual":
+              this.setPreviousStatement(
+                true,
+                blockDef.statementType ?? "default",
+              );
+              this.setNextStatement(true, blockDef.statementType ?? "default");
+              this.setOutput(true, blockDef.outputType ?? null);
+              if (blockDef.outputShape) {
+                (this as Blockly.Block & { setOutputShape?: (shape: number) => void })
+                  .setOutputShape?.(blockDef.outputShape);
+              }
+              break;
+          }
 
-        if (blockDef.tooltip) this.setTooltip(blockDef.tooltip);
-        this.setColour(String(blockDef.color ?? categoryColor));
-        this.setInputsInline(blockDef.inlineInputs ?? true);
-      },
-    };
+          if (blockDef.tooltip) this.setTooltip(blockDef.tooltip);
+          this.setColour(String(blockDef.color ?? categoryColor));
+          this.setInputsInline(blockDef.inlineInputs ?? true);
+        },
+      };
+    }
   }
 
   return blockDefs;
 }
 
 function collectInputs(
-  block: Blockly.Block,
+  block: Blockly.Block & { itemCount_?: number },
   fields: Record<string, ExtensionFieldSpec> = {},
 ) {
   const inputs: Record<string, string> = {};
@@ -319,6 +340,14 @@ function collectInputs(
     } else if (input.connection?.type === Blockly.ConnectionType.NEXT_STATEMENT) {
       const code = javascriptGenerator.statementToCode(block, input.name);
       if (code) inputs[input.name] = `async () => { ${code} }`;
+    }
+  }
+  if (typeof block.itemCount_ === "number") {
+    inputs["itemCount"] = block.itemCount_.toString();
+    for (let i = 0; i < block.itemCount_; i++) {
+      const inputName = `ADD${i}`;
+      const code = javascriptGenerator.valueToCode(block, inputName, Order.ATOMIC);
+      if (code) inputs[inputName] = code;
     }
   }
 

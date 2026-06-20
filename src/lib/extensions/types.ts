@@ -45,6 +45,15 @@ export type ExtensionBlockDef = {
   statementType?: string | string[] | null;
   promise?: boolean;
   dual?: boolean;
+  expandable?: boolean;
+  initialItemCount?: number;
+  minItemCount?: number;
+  maxItemCount?: number;
+  inputPrefix?: string;
+  emptyLabel?: string;
+  firstInputLabel?: string;
+  inputCheck?: string | string[] | null;
+  shadow?: any;
 };
 
 export type ExtensionCategoryDef = {

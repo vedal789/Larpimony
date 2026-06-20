@@ -15,5 +15,11 @@ export const extensions:ExtensionItem[] = [
         desc: "2D Camera system for scrolling and zooming.",
         creator: "Antimony Team",
         jsFile: "camera.js"
+    },
+    {
+        name: "Sets",
+        desc: "Set data structure blocks for storing unique values.",
+        creator: "Antimony Team",
+        jsFile: "sets.js"
     }
 ]

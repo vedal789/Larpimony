@@ -203,7 +203,7 @@ export default function App() {
         try {
           const buffer = re.target?.result as ArrayBuffer;
           const project = await deserializeProject(buffer);
-          
+
           clearExtensions();
 
           if (project.extensions && project.extensions.length > 0) {
@@ -364,7 +364,7 @@ export default function App() {
             SHOW EXT MENU HERE
           </div>
           */
-          <ExtensionMenu showMenu={setShowExtMenu}/>
+          <ExtensionMenu showMenu={setShowExtMenu} />
         )}
       </ProjectSettingsContext.Provider>
     </SpriteContext.Provider>
