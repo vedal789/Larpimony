@@ -38,6 +38,8 @@ import { isChromiumBrowser } from "../lib/browser";
 import { Plyr } from "plyr-react";
 import "plyr/dist/plyr.css";
 
+const LINE_HEIGHT = 1.2;
+
 function createStageCoords(virtualWidth: number, virtualHeight: number) {
   return {
     toCanvasX: (x: number) => x + virtualWidth / 2,
@@ -55,22 +57,6 @@ function snapCanvasPoint(x: number, y: number, gridSize: number) {
   return {
     x: snapCanvasCoord(x, gridSize),
     y: snapCanvasCoord(y, gridSize),
-  };
-}
-
-function snapTopLeftToGrid(
-  topLeftX: number,
-  topLeftY: number,
-  width: number,
-  height: number,
-  gridSize: number,
-) {
-  const centerX = topLeftX + width / 2;
-  const centerY = topLeftY + height / 2;
-  const snapped = snapCanvasPoint(centerX, centerY, gridSize);
-  return {
-    x: snapped.x - width / 2,
-    y: snapped.y - height / 2,
   };
 }
 
@@ -219,6 +205,76 @@ function StageROT({ width, height }: { width: number; height: number }) {
   return <>{lines}</>;
 }
 
+function getCharLayout(
+  content: string,
+  fontFamily: string,
+  fontSize: number,
+  fontWeight: number,
+  align: "left" | "center" | "right",
+  totalWidth: number,
+  totalHeight: number
+) {
+  const normalizedContent = content.replace(/\r\n/g, "\n");
+  
+  if (typeof document === "undefined") {
+    return normalizedContent.split("").map((char, index) => ({
+      char,
+      x: index * fontSize * 0.6,
+      y: 0,
+    }));
+  }
+  
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return normalizedContent.split("").map((char, index) => ({
+      char,
+      x: index * fontSize * 0.6,
+      y: 0,
+    }));
+  }
+  
+  const fontStyle = fontWeight >= 600 ? "bold" : "normal";
+  ctx.font = `${fontStyle} ${fontSize}px ${buildFontStack(fontFamily)}`;
+  
+  const lines = normalizedContent.split("\n");
+  const lineHeight = fontSize * LINE_HEIGHT;
+  const totalTextHeight = lines.length * lineHeight;
+  
+  const startY = (totalHeight - totalTextHeight) / 2;
+  let currentY = startY;
+  
+  const layout: { char: string; x: number; y: number }[] = [];
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lineChars = line.split("");
+    const widths = lineChars.map(c => ctx.measureText(c).width);
+    const totalTextWidth = widths.reduce((sum, w) => sum + w, 0);
+    
+    let startX = 0;
+    if (align === "center") {
+      startX = (totalWidth - totalTextWidth) / 2;
+    } else if (align === "right") {
+      startX = totalWidth - totalTextWidth;
+    }
+    
+    let currentX = startX;
+    for (let j = 0; j < lineChars.length; j++) {
+      layout.push({
+        char: lineChars[j],
+        x: currentX,
+        y: currentY,
+      });
+      currentX += widths[j];
+    }
+    
+    currentY += lineHeight;
+  }
+  
+  return layout;
+}
+
 function SpriteRenderer({
   sprite,
   isSelected,
@@ -255,6 +311,7 @@ function SpriteRenderer({
       loadGoogleFont(sprite.data.fontFamily);
     }
   }, [sprite.data]);
+  
   const videoShouldPlayRef = useRef<boolean>(false);
   const { dispatch } = useSprites();
   const mediaData = isMediaData(sprite.data) ? sprite.data : null;
@@ -402,13 +459,7 @@ function SpriteRenderer({
   const handleDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
     if (!snapToGrid || sprite.locked) return;
     const node = e.target;
-    const snapped = snapTopLeftToGrid(
-      node.x(),
-      node.y(),
-      node.width(),
-      node.height(),
-      gridSize,
-    );
+    const snapped = snapCanvasPoint(node.x(), node.y(), gridSize);
     node.x(snapped.x);
     node.y(snapped.y);
   };
@@ -416,30 +467,18 @@ function SpriteRenderer({
   const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
     if (sprite.locked) return;
     const node = e.target;
-    const width = node.width();
-    const height = node.height();
-    const topLeft = snapToGrid
-      ? snapTopLeftToGrid(
-        node.x() - width / 2,
-        node.y() - height / 2,
-        width,
-        height,
-        gridSize,
-      )
-      : {
-        x: node.x() - width / 2,
-        y: node.y() - height / 2,
-      };
+    const cx = snapToGrid ? snapCanvasCoord(node.x(), gridSize) : node.x();
+    const cy = snapToGrid ? snapCanvasCoord(node.y(), gridSize) : node.y();
     if (snapToGrid) {
-      node.x(topLeft.x);
-      node.y(topLeft.y);
+      node.x(cx);
+      node.y(cy);
     }
     dispatch({
       type: "UPDATE_SPRITE",
       id: sprite.id,
       changes: {
-        x: fromCanvasX(topLeft.x + width / 2),
-        y: fromCanvasY(topLeft.y + height / 2),
+        x: fromCanvasX(cx),
+        y: fromCanvasY(cy),
       },
     });
   };
@@ -452,15 +491,18 @@ function SpriteRenderer({
     node.scaleX(1);
     node.scaleY(1);
 
-    const updatedWidth = Math.max(
-      5,
-      Number((node.width() * scaleX).toFixed(2)),
-    );
-    const updatedHeight = Math.max(
-      5,
-      Number((node.height() * scaleY).toFixed(2)),
-    );
-    const updatedRotation = node.rotation();
+    const rawWidth = node.width() * scaleX;
+    const rawHeight = node.height() * scaleY;
+    const updatedWidth = Number.isFinite(rawWidth)
+      ? Math.max(5, Number(rawWidth.toFixed(2)))
+      : sprite.width;
+    const updatedHeight = Number.isFinite(rawHeight)
+      ? Math.max(5, Number(rawHeight.toFixed(2)))
+      : sprite.height;
+    const rawRotation = node.rotation();
+    const updatedRotation = Number.isFinite(rawRotation)
+      ? rawRotation
+      : sprite.rotation;
     const changes: {
       x: number;
       y: number;
@@ -476,33 +518,31 @@ function SpriteRenderer({
       rotation: updatedRotation,
     };
 
-    const topLeft = snapToGrid
-      ? snapTopLeftToGrid(
-        node.x() - updatedWidth / 2,
-        node.y() - updatedHeight / 2,
-        updatedWidth,
-        updatedHeight,
-        gridSize,
-      )
-      : {
-        x: node.x() - updatedWidth / 2,
-        y: node.y() - updatedHeight / 2,
-      };
-    changes.x = fromCanvasX(topLeft.x + updatedWidth / 2);
-    changes.y = fromCanvasY(topLeft.y + updatedHeight / 2);
+    const rawNodeX = node.x();
+    const rawNodeY = node.y();
+    const fallbackCx = toCanvasX(sprite.x);
+    const fallbackCy = toCanvasY(sprite.y);
+    const cx = Number.isFinite(rawNodeX)
+      ? (snapToGrid ? snapCanvasCoord(rawNodeX, gridSize) : rawNodeX)
+      : fallbackCx;
+    const cy = Number.isFinite(rawNodeY)
+      ? (snapToGrid ? snapCanvasCoord(rawNodeY, gridSize) : rawNodeY)
+      : fallbackCy;
+    changes.x = fromCanvasX(cx);
+    changes.y = fromCanvasY(cy);
     if (snapToGrid) {
-      node.x(topLeft.x);
-      node.y(topLeft.y);
+      node.x(cx);
+      node.y(cy);
     }
 
     if (isTextSprite && isTextData(sprite.data)) {
       const fontScale = (Math.abs(scaleX) + Math.abs(scaleY)) / 2;
+      const newFontSize = sprite.data.fontSize * fontScale;
       changes.data = {
         ...sprite.data,
-        fontSize: Math.max(
-          8,
-          Number((sprite.data.fontSize * fontScale).toFixed(2)),
-        ),
+        fontSize: Number.isFinite(newFontSize)
+          ? Math.max(8, Number(newFontSize.toFixed(2)))
+          : sprite.data.fontSize,
       };
     }
 
@@ -516,8 +556,7 @@ function SpriteRenderer({
   const isTextSprite = sprite.type === "text";
   const canvasCenterX = toCanvasX(sprite.x);
   const canvasCenterY = toCanvasY(sprite.y);
-  const canvasTopLeftX = canvasCenterX - sprite.width / 2;
-  const canvasTopLeftY = canvasCenterY - sprite.height / 2;
+
   const commonProps = {
     x: canvasCenterX,
     y: canvasCenterY,
@@ -541,19 +580,39 @@ function SpriteRenderer({
 
   if (isTextData(sprite.data)) {
     const d = sprite.data;
+    const linesCount = d.content.replace(/\r\n/g, "\n").split("\n").length;
+    const textHeight = linesCount * d.fontSize * LINE_HEIGHT;
+    const textY = (sprite.height - textHeight) / 2;
+
     element = (
-      <Text
+      <Group
         {...commonProps}
-        ref={nodeRef as React.RefObject<Konva.Text | null>}
-        text={d.content}
-        fontFamily={buildFontStack(d.fontFamily)}
-        fontSize={d.fontSize}
-        fontStyle={d.fontWeight >= 600 ? "bold" : "normal"}
-        fill={d.color}
-        align={d.align}
-        verticalAlign="middle"
-        wrap="word"
-      />
+        ref={nodeRef as React.RefObject<Konva.Group | null>}
+      >
+        <Rect
+          name="hit-rect"
+          x={0}
+          y={0}
+          width={sprite.width}
+          height={sprite.height}
+          fill="transparent"
+        />
+        <Text
+          name="main-text"
+          x={0}
+          y={textY}
+          width={sprite.width}
+          text={d.content}
+          fontFamily={buildFontStack(d.fontFamily)}
+          fontSize={d.fontSize}
+          lineHeight={LINE_HEIGHT}
+          fontStyle={d.fontWeight >= 600 ? "bold" : "normal"}
+          fill={d.color}
+          align={d.align}
+          verticalAlign="top"
+          wrap="none"
+        />
+      </Group>
     );
   } else if (isMediaData(sprite.data) || isVideoData(sprite.data)) {
     element = (
@@ -755,15 +814,6 @@ export default function StageView() {
     mediaRecorderRef.current = null;
     recordedChunksRef.current = [];
   }, []);
-
-  const downloadBlob = (blob: Blob, fileName: string) => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   const handleExport = async (options: ExportOptions) => {
     const stage = stageRef.current;
@@ -994,12 +1044,12 @@ export default function StageView() {
             );
 
           javascriptGenerator.init(tempWorkspace);
-          const code = hatBlocks
+          const rawCode = hatBlocks
             .map((block: Blockly.Block) =>
               javascriptGenerator.blockToCode(block),
             )
             .join("");
-          javascriptGenerator.finish(code);
+          const code = javascriptGenerator.finish(rawCode);
 
           if (code.trim()) {
             parts.push(
@@ -1151,16 +1201,39 @@ export default function StageView() {
           mediaElement.pause();
           if (options?.resetTime) mediaElement.currentTime = 0;
         } catch {
-          // ignore
         }
       }
     },
     [],
   );
 
+  const resetTextSpriteNodes = useCallback(() => {
+    for (const node of spriteNodeRefs.current.values()) {
+      if (!(node instanceof KonvaCore.Group)) continue;
+      const mainText = node.findOne(".main-text") as Konva.Text | undefined;
+      if (!mainText) continue;
+      
+      const children = node.getChildren();
+      for (let j = children.length - 1; j >= 0; j--) {
+        const child = children[j];
+        if (child.name() !== "hit-rect" && child.name() !== "main-text") {
+          child.destroy();
+        }
+      }
+      mainText.visible(true);
+    }
+    layerRef.current?.batchDraw();
+  }, []);
+
   const handlePlay = async (options?: { stepping?: boolean }) => {
     const generation = ++playGenerationRef.current;
     runtime.stop();
+
+    layerRef.current?.find("Transformer").forEach((tr) => {
+      (tr as Konva.Transformer).nodes([]);
+      tr.hide();
+    });
+    resetTextSpriteNodes();
 
     if (options?.stepping) runtime.enableStepping();
     else runtime.disableStepping();
@@ -1173,7 +1246,7 @@ export default function StageView() {
     setIsLoading(true);
 
     state.sprites.forEach((sprite) => {
-      const spriteData: Record<string, unknown> = {
+      const spriteData: Record<string, any> = {
         x: sprite.x,
         y: sprite.y,
         rotation: sprite.rotation,
@@ -1230,6 +1303,7 @@ export default function StageView() {
         const rotation = Number(spriteData.rotation ?? sprite.rotation);
         const opacity = Number(spriteData.opacity ?? sprite.opacity);
         const visible = Boolean(spriteData.visible ?? sprite.visible);
+        
         node.setAttrs({
           x: stageCoords.toCanvasX(x),
           y: stageCoords.toCanvasY(y),
@@ -1241,13 +1315,107 @@ export default function StageView() {
           opacity,
           visible,
         });
+
         if (sprite.type === "text") {
-          if (typeof spriteData.color === "string")
-            node.setAttr("fill", spriteData.color);
-          if (typeof spriteData.text === "string")
-            node.setAttr("text", spriteData.text);
-          if (typeof spriteData.fontSize === "number")
-            node.setAttr("fontSize", spriteData.fontSize);
+          const group = node as Konva.Group;
+          const textVal = typeof spriteData.text === "string" ? spriteData.text : (sprite.data as any).content;
+          const fillVal = typeof spriteData.color === "string" ? spriteData.color : (sprite.data as any).color;
+          const sizeVal = typeof spriteData.fontSize === "number" ? spriteData.fontSize : (sprite.data as any).fontSize;
+          const fontFam = (sprite.data as any).fontFamily;
+          const fontW = (sprite.data as any).fontWeight;
+          const alignVal = (sprite.data as any).align;
+          const positions = (spriteData.charPositions || {}) as Record<number, { x: number; y: number }>;
+
+          const textValStr = String(textVal);
+          let layout: ReturnType<typeof getCharLayout> = [];
+          if (textValStr.length > 0) {
+            try {
+              layout = getCharLayout(textValStr, fontFam, sizeVal, fontW, alignVal, width, height);
+            } catch {
+              layout = [];
+            }
+          }
+
+          const hitRect = group.findOne(".hit-rect") as Konva.Rect | undefined;
+          if (hitRect) {
+            hitRect.setAttrs({ width, height });
+          }
+
+          const mainText = group.findOne(".main-text") as Konva.Text | undefined;
+
+          if (layout.length === 0) {
+            const children = group.getChildren();
+            for (let j = children.length - 1; j >= 0; j--) {
+              const child = children[j];
+              if (child.name() !== "hit-rect" && child.name() !== "main-text") {
+                child.destroy();
+              }
+            }
+            if (mainText) {
+              const linesCount = textValStr.replace(/\r\n/g, "\n").split("\n").length;
+              const textY = (height - (linesCount * sizeVal * LINE_HEIGHT)) / 2;
+              mainText.setAttrs({
+                visible: true,
+                x: 0,
+                y: textY,
+                width,
+                text: textValStr,
+                fill: fillVal,
+                fontSize: sizeVal,
+                lineHeight: LINE_HEIGHT,
+                fontFamily: buildFontStack(fontFam),
+                fontStyle: fontW >= 600 ? "bold" : "normal",
+                align: alignVal,
+                verticalAlign: "top",
+                wrap: "none",
+              });
+            }
+          } else {
+            if (mainText) mainText.setAttrs({ visible: false });
+            
+            const children = group.getChildren();
+            for (let j = 0; j < children.length; j++) {
+              const child = children[j];
+              const name = child.name();
+              if (name && name.startsWith("char-")) {
+                const idx = parseInt(name.split("-")[1], 10);
+                if (idx > layout.length) {
+                  child.destroy();
+                  j--;
+                }
+              }
+            }
+
+            for (let i = 0; i < layout.length; i++) {
+              const item = layout[i];
+              const charIdx = i + 1;
+              let charNode = group.findOne(`.char-${charIdx}`) as Konva.Text | undefined;
+
+              if (item.char === "\n") {
+                 if (charNode) charNode.destroy();
+                 continue;
+              }
+
+              if (!charNode) {
+                charNode = new KonvaCore.Text({ name: `char-${charIdx}` });
+                group.add(charNode);
+              }
+
+              const charOffset = positions[charIdx] || { x: 0, y: 0 };
+              charNode.setAttrs({
+                visible: true,
+                x: item.x + charOffset.x,
+                y: item.y + charOffset.y,
+                text: item.char,
+                fontFamily: buildFontStack(fontFam),
+                fontSize: sizeVal,
+                fontStyle: fontW >= 600 ? "bold" : "normal",
+                fill: fillVal,
+                align: "left",
+                verticalAlign: "top",
+              });
+            }
+          }
         }
         node.getLayer()?.batchDraw();
       };
@@ -1276,6 +1444,18 @@ export default function StageView() {
               ...((target.tweenModes as Record<string, unknown>) ??
                 current?.tweenModes),
             };
+          }
+          if (property === "setCharPosition") {
+            return (index: number, x: number, y: number) => {
+              if (!target.charPositions) {
+                target.charPositions = {};
+              }
+              target.charPositions[index] = { x, y };
+              applyLiveSprite();
+            };
+          }
+          if (property === "charPositions") {
+            return target.charPositions || {};
           }
           if (property === "color") {
             return target.color;
@@ -1621,6 +1801,7 @@ export default function StageView() {
         dispatch,
         getSprites: () => spritesRef.current,
       });
+      applyLiveSprite();
     });
 
     try {
@@ -1632,7 +1813,12 @@ export default function StageView() {
     }
     if (generation !== playGenerationRef.current) return;
 
-    await runtime.start();
+    try {
+      await runtime.start();
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name === "StopError") return;
+      throw e;
+    }
     if (generation === playGenerationRef.current) {
       flushPlaybackStateUpdates();
     }
@@ -1661,6 +1847,7 @@ export default function StageView() {
 
     pauseAllVideoElements({ resetTime: true });
     runtime.stop();
+    resetTextSpriteNodes();
 
     for (const ref of videoShouldPlayRefs.current.values()) {
       ref.current = false;
@@ -1754,7 +1941,13 @@ export default function StageView() {
       <div className="panel-header stage-panel-header">
         <div
           className="transport-controls"
-          style={{ background: "transparent", border: "none", padding: 0 }}
+          style={{ 
+            background: "transparent", 
+            border: "none", 
+            padding: 0,
+            display: "flex",
+            width: "fit-content"
+          }}
         >
           <button
             className={`transport-btn ${isPlaying && !isPaused ? "active" : ""}`}
@@ -1844,6 +2037,8 @@ export default function StageView() {
                   background: "transparent",
                   border: "none",
                   padding: 0,
+                  display: "flex",
+                  width: "fit-content"
                 }}
               >
                 <button

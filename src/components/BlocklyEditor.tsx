@@ -199,6 +199,11 @@ export default function BlocklyEditor({showMenu}:{showMenu:Dispatch<SetStateActi
           defaultBlockType: "controls_forLoop_var",
         },
         {
+          blockType: "motion_forEachCharacter",
+          inputName: "VAR",
+          defaultBlockType: "motion_forEachCharacter_var",
+        },
+        {
           blockType: "functions_lambda",
           inputName: "ARG",
           defaultBlockType: "functions_argument",

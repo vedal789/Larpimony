@@ -278,3 +278,77 @@ javascriptGenerator.forBlock["motion_glideSecsTo"] = function (
   const y = javascriptGenerator.valueToCode(block, "Y", Order.NONE) || "0";
   return `await window.RUNTIME.tweenMany(context, { x: (${x}), y: (${y}) }, (${secs}));\n`;
 };
+
+Blockly.Blocks["motion_setCharPosition"] = {
+  init: function () {
+    this.appendValueInput("INDEX").setCheck("Number").appendField("set position of char at position");
+    this.appendValueInput("X").setCheck("Number").appendField("to X");
+    this.appendValueInput("Y").setCheck("Number").appendField("Y");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setStyle("motion_blocks");
+    this.setInputsInline(true);
+  },
+};
+
+javascriptGenerator.forBlock["motion_setCharPosition"] = function (
+  block: Blockly.Block,
+) {
+  const index = javascriptGenerator.valueToCode(block, "INDEX", Order.ATOMIC) || "1";
+  const x = javascriptGenerator.valueToCode(block, "X", Order.ATOMIC) || "0";
+  const y = javascriptGenerator.valueToCode(block, "Y", Order.ATOMIC) || "0";
+  return `context.sprite.setCharPosition(${index}, ${x}, ${y});\n`;
+};
+
+Blockly.Blocks["motion_tweenCharPosition"] = {
+  init: function () {
+    this.appendValueInput("INDEX").setCheck("Number").appendField("tween char at position");
+    this.appendValueInput("X").setCheck("Number").appendField("to X");
+    this.appendValueInput("Y").setCheck("Number").appendField("Y");
+    this.appendValueInput("DURATION").setCheck("Number").appendField("over");
+    this.appendDummyInput().appendField("seconds");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setStyle("motion_blocks");
+    this.setInputsInline(true);
+  },
+};
+
+javascriptGenerator.forBlock["motion_tweenCharPosition"] = function (
+  block: Blockly.Block,
+) {
+  const index = javascriptGenerator.valueToCode(block, "INDEX", Order.ATOMIC) || "1";
+  const x = javascriptGenerator.valueToCode(block, "X", Order.ATOMIC) || "0";
+  const y = javascriptGenerator.valueToCode(block, "Y", Order.ATOMIC) || "0";
+  const duration = javascriptGenerator.valueToCode(block, "DURATION", Order.ATOMIC) || "1";
+  return `await window.RUNTIME.tweenCharPosition(context, ${index}, ${x}, ${y}, ${duration});\n`;
+};
+
+Blockly.Blocks["motion_forEachCharacter_var"] = {
+  init: function () {
+    this.appendDummyInput().appendField("char num");
+    this.setOutput(true, "Number");
+    this.setStyle("motion_blocks");
+  },
+};
+
+javascriptGenerator.forBlock["motion_forEachCharacter_var"] = function () {
+  return ["char_num", Order.ATOMIC];
+};
+
+Blockly.Blocks["motion_forEachCharacter"] = {
+  init: function () {
+    this.appendValueInput("VAR").appendField("for each character");
+    this.appendStatementInput("DO").setCheck(null);
+    this.setStyle("motion_blocks");
+    (this as any).hat = "cap";
+  },
+};
+
+javascriptGenerator.forBlock["motion_forEachCharacter"] = function (
+  block: Blockly.Block,
+) {
+  const variableName = javascriptGenerator.valueToCode(block, "VAR", Order.NONE) || "char_num";
+  const statements = javascriptGenerator.statementToCode(block, "DO");
+  return `(window.RUNTIME || {}).onStart(async function(context){\n  const _text = typeof context.sprite.text === "string" ? context.sprite.text : "";\n  const _len = _text.length;\n  for (let ${variableName} = 1; ${variableName} <= _len; ${variableName}++) {\n    (async () => {\n${statements}\n    })();\n  }\n});\n`;
+};

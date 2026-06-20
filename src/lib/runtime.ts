@@ -1068,6 +1068,51 @@ class Runtime {
     await this.tweenMany(context, { [property]: targetValue }, durationSec);
   }
 
+  async tweenCharPosition(
+    context: SpriteContext,
+    index: number,
+    targetX: number,
+    targetY: number,
+    durationSec: number,
+  ) {
+    try {
+      const sprite = context.sprite as any;
+      const currentPositions = sprite.charPositions || {};
+      const startPos = currentPositions[index] || { x: 0, y: 0 };
+      const startX = startPos.x;
+      const startY = startPos.y;
+      const mode = (sprite.tweenMode as TweenMode) || "linear";
+      const durationMs = Math.max(0, durationSec) * 1000;
+      const startTime = this.now();
+
+      if (durationMs === 0) {
+        sprite.setCharPosition(index, targetX, targetY);
+        return;
+      }
+
+      while (true) {
+        if (this.isStopped()) return;
+
+        const linearT = Math.min(1, (this.now() - startTime) / durationMs);
+        const easedT = applyTweenMode(linearT, mode);
+        const currentX = startX + (targetX - startX) * easedT;
+        const currentY = startY + (targetY - startY) * easedT;
+
+        sprite.setCharPosition(index, currentX, currentY);
+
+        if (linearT >= 1) break;
+
+        await this.nextFrame();
+      }
+
+      if (this.isStopped()) return;
+      sprite.setCharPosition(index, targetX, targetY);
+    } catch (e) {
+      if (e instanceof StopError) return;
+      throw e;
+    }
+  }
+
   async tweenMany(
     context: SpriteContext,
     targets: Partial<Record<TweenableProperty, number>>,
@@ -1076,57 +1121,62 @@ class Runtime {
     const entries = Object.entries(targets) as [TweenableProperty, number][];
     if (entries.length === 0) return;
 
-    const sprite = context.sprite as Record<string, unknown>;
-    const starts = Object.fromEntries(
-      entries.map(([property]) => [
-        property,
-        readTweenProperty(sprite, property),
-      ]),
-    ) as Record<TweenableProperty, number>;
-    const modes = Object.fromEntries(
-      entries.map(([property]) => {
-        const tweenModes = sprite.tweenModes as
-          | Partial<Record<TweenableProperty, TweenMode>>
-          | undefined;
-        return [
+    try {
+      const sprite = context.sprite as Record<string, unknown>;
+      const starts = Object.fromEntries(
+        entries.map(([property]) => [
           property,
-          tweenModes?.[property] ??
-            (sprite.tweenMode as TweenMode | undefined) ??
-            "linear",
-        ];
-      }),
-    ) as Record<TweenableProperty, TweenMode>;
+          readTweenProperty(sprite, property),
+        ]),
+      ) as Record<TweenableProperty, number>;
+      const modes = Object.fromEntries(
+        entries.map(([property]) => {
+          const tweenModes = sprite.tweenModes as
+            | Partial<Record<TweenableProperty, TweenMode>>
+            | undefined;
+          return [
+            property,
+            tweenModes?.[property] ??
+              (sprite.tweenMode as TweenMode | undefined) ??
+              "linear",
+          ];
+        }),
+      ) as Record<TweenableProperty, TweenMode>;
 
-    const durationMs = Math.max(0, durationSec) * 1000;
-    let startTime = this.now();
+      const durationMs = Math.max(0, durationSec) * 1000;
+      let startTime = this.now();
 
-    if (durationMs === 0) {
+      if (durationMs === 0) {
+        for (const [property, targetValue] of entries) {
+          writeTweenProperty(sprite, property, targetValue);
+        }
+        return;
+      }
+
+      while (true) {
+        if (this.isStopped()) return;
+
+        const linearT = Math.min(1, (this.now() - startTime) / durationMs);
+        for (const [property, targetValue] of entries) {
+          const easedT = applyTweenMode(linearT, modes[property]);
+          const startValue = starts[property];
+          const value = startValue + (targetValue - startValue) * easedT;
+          writeTweenProperty(sprite, property, value);
+        }
+
+        if (linearT >= 1) break;
+
+        await this.nextFrame();
+      }
+
+      if (this.isStopped()) return;
+
       for (const [property, targetValue] of entries) {
         writeTweenProperty(sprite, property, targetValue);
       }
-      return;
-    }
-
-    while (true) {
-      if (this.isStopped()) return;
-
-      const linearT = Math.min(1, (this.now() - startTime) / durationMs);
-      for (const [property, targetValue] of entries) {
-        const easedT = applyTweenMode(linearT, modes[property]);
-        const startValue = starts[property];
-        const value = startValue + (targetValue - startValue) * easedT;
-        writeTweenProperty(sprite, property, value);
-      }
-
-      if (linearT >= 1) break;
-
-      await this.nextFrame();
-    }
-
-    if (this.isStopped()) return;
-
-    for (const [property, targetValue] of entries) {
-      writeTweenProperty(sprite, property, targetValue);
+    } catch (e) {
+      if (e instanceof StopError) return;
+      throw e;
     }
   }
 

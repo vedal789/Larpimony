@@ -24,6 +24,10 @@ export const blockVisibilityConfig: BlockVisibilityConfig = {
   motion_goToPosition: { visibleFor: ["sprite", "text", "video"] },
   motion_positionX: { visibleFor: ["sprite", "text", "video"] },
   motion_positionY: { visibleFor: ["sprite", "text", "video"] },
+  motion_setCharPosition: { visibleFor: ["text"] },
+  motion_tweenCharPosition: { visibleFor: ["text"] },
+  motion_forEachCharacter: { visibleFor: ["text"] },
+  motion_forEachCharacter_var: { visibleFor: ["text"] },
 
   appearance_show: { visibleFor: ["sprite", "text", "video"] },
   appearance_hide: { visibleFor: ["sprite", "text", "video"] },
