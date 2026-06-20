@@ -4,7 +4,7 @@ import { javascriptGenerator, Order } from "blockly/javascript";
 Blockly.Blocks["functions_argument"] = {
   init: function () {
     this.appendDummyInput().appendField("argument");
-    this.setOutput(true, "VariableName");
+    this.setOutput(true, null);
     this.setStyle("procedure_blocks");
     this.setTooltip("The argument passed into this lambda.");
   },
@@ -17,7 +17,7 @@ javascriptGenerator.forBlock["functions_argument"] = function () {
 Blockly.Blocks["functions_lambda"] = {
   init: function () {
     this.appendValueInput("ARG")
-      .setCheck("VariableName")
+      .setCheck(null)
       .appendField("new lambda");
     this.appendStatementInput("BODY");
     this.setOutput(true, null);
@@ -77,4 +77,4 @@ javascriptGenerator.forBlock["functions_return"] = function (
   return `return (${val});\n`;
 };
 
-export {};
+export { };
