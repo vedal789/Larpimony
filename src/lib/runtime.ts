@@ -235,12 +235,29 @@ class Runtime {
     return this.masterGain;
   }
 
+  private liveWaitCount = 0;
+
+  private bumpLiveWait(delta: number) {
+    this.liveWaitCount += delta;
+  }
+
+  hasLiveWaiters() {
+    return this.liveWaitCount > 0;
+  }
+
   private virtualDelay(ms: number): Promise<void> {
+    this.bumpLiveWait(1);
     return new Promise((resolve, reject) => {
       this.virtualDelayWaiters.add({
         targetTime: this.virtualTime + ms,
-        resolve,
-        reject,
+        resolve: () => {
+          this.bumpLiveWait(-1);
+          resolve();
+        },
+        reject: (e: Error) => {
+          this.bumpLiveWait(-1);
+          reject(e);
+        },
       });
     });
   }
@@ -521,7 +538,7 @@ class Runtime {
       }
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await Promise.resolve();
   }
 
   pause() {
@@ -635,7 +652,8 @@ class Runtime {
       return this.virtualDelay(ms);
     }
 
-    return this.delayFor(ms);
+    this.bumpLiveWait(1);
+    return this.delayFor(ms).finally(() => this.bumpLiveWait(-1));
   }
 
   private async delayFor(ms: number): Promise<void> {
@@ -736,6 +754,7 @@ class Runtime {
     }
     this.pauseResolvers.clear();
     this.clearHandlers();
+    this.liveWaitCount = 0;
   }
 
   private resetAudioState() {
@@ -1186,13 +1205,33 @@ class Runtime {
     }
 
     if (this.isStepping) {
+      this.bumpLiveWait(1);
       return new Promise((resolve, reject) => {
-        this.virtualFrameWaiters.add({ resolve, reject });
+        this.virtualFrameWaiters.add({
+          resolve: () => {
+            this.bumpLiveWait(-1);
+            resolve();
+          },
+          reject: (error: StopError) => {
+            this.bumpLiveWait(-1);
+            reject(error);
+          },
+        });
       });
     }
 
+    this.bumpLiveWait(1);
     return new Promise((resolve, reject) => {
-      const waiter = { resolve, reject };
+      const waiter = {
+        resolve: () => {
+          this.bumpLiveWait(-1);
+          resolve();
+        },
+        reject: (error: StopError) => {
+          this.bumpLiveWait(-1);
+          reject(error);
+        },
+      };
       this.frameWaiters.add(waiter);
       this.scheduleFrameTick();
     });
@@ -1375,7 +1414,16 @@ class Runtime {
 const runtime = (typeof window !== "undefined" && window.RUNTIME) ? window.RUNTIME : new Runtime();
 
 if (typeof window !== "undefined") {
+  const alreadyRunning = window.RUNTIME === runtime;
   window.RUNTIME = runtime;
+
+  if (!alreadyRunning) {
+    window.addEventListener("unhandledrejection", (event) => {
+      if (event.reason instanceof StopError) {
+        event.preventDefault();
+      }
+    });
+  }
 }
 
 export default runtime;

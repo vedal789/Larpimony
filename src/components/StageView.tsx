@@ -923,22 +923,25 @@ export default function StageView() {
 
       await runtime.preloadSounds();
 
-      let finished = false;
+      let kickoffSettled = false;
       const playPromise = handlePlay({ stepping: true });
       playPromise.then(() => {
-        finished = true;
+        kickoffSettled = true;
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await Promise.resolve();
+      await Promise.resolve();
 
       const exportStartTime = performance.now();
       while (true) {
         layer.draw();
         await captureFrame();
-        if (finished) break;
 
         await runtime.step();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        if (kickoffSettled && !runtime.hasLiveWaiters()) break;
 
         const expectedMs = (frameCounter / fps) * 1000;
         const actualMs = performance.now() - exportStartTime;
@@ -947,11 +950,15 @@ export default function StageView() {
             setTimeout(resolve, expectedMs - actualMs),
           );
         }
-
-        if (frameCounter > fps * 300) break;
       }
 
       runtime.disableStepping();
+
+      if (videoFrames.length === 0) {
+        throw new Error(
+          "Nothing was recorded. Add a block to run when the video starts.",
+        );
+      }
 
       setIsEncoding(true);
       setIsRecordModalOpen(true);
