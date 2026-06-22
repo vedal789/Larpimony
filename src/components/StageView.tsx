@@ -205,6 +205,39 @@ function StageROT({ width, height }: { width: number; height: number }) {
   return <>{lines}</>;
 }
 
+function measureTextContentSize(
+  content: string,
+  fontFamily: string,
+  fontSize: number,
+  fontWeight: number,
+): { width: number; height: number } {
+  const normalizedContent = content.replace(/\r\n/g, "\n");
+  const lines = normalizedContent.split("\n");
+  const lineHeight = fontSize * LINE_HEIGHT;
+
+  if (typeof document === "undefined") {
+    const widest = Math.max(...lines.map((l) => l.length), 1);
+    return { width: widest * fontSize * 0.6, height: lines.length * lineHeight };
+  }
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    const widest = Math.max(...lines.map((l) => l.length), 1);
+    return { width: widest * fontSize * 0.6, height: lines.length * lineHeight };
+  }
+
+  const fontStyle = fontWeight >= 600 ? "bold" : "normal";
+  ctx.font = `${fontStyle} ${fontSize}px ${buildFontStack(fontFamily)}`;
+
+  const widest = lines.reduce(
+    (max, line) => Math.max(max, ctx.measureText(line).width),
+    0,
+  );
+
+  return { width: widest, height: lines.length * lineHeight };
+}
+
 function getCharLayout(
   content: string,
   fontFamily: string,
@@ -240,8 +273,9 @@ function getCharLayout(
   const lines = normalizedContent.split("\n");
   const lineHeight = fontSize * LINE_HEIGHT;
   const totalTextHeight = lines.length * lineHeight;
+  const leading = (lineHeight - fontSize) / 2;
   
-  const startY = (totalHeight - totalTextHeight) / 2;
+  const startY = (totalHeight - totalTextHeight) / 2 + leading;
   let currentY = startY;
   
   const layout: { char: string; x: number; y: number }[] = [];
@@ -557,13 +591,40 @@ function SpriteRenderer({
   const canvasCenterX = toCanvasX(sprite.x);
   const canvasCenterY = toCanvasY(sprite.y);
 
+  const textContentSize =
+    isTextSprite && showTransformer && isTextData(sprite.data)
+      ? measureTextContentSize(
+          sprite.data.content,
+          sprite.data.fontFamily,
+          sprite.data.fontSize,
+          sprite.data.fontWeight,
+        )
+      : null;
+
+  const boxWidth = textContentSize
+    ? Math.max(textContentSize.width, 1)
+    : sprite.width;
+  const boxHeight = textContentSize
+    ? Math.max(textContentSize.height, 1)
+    : sprite.height;
+
+  const contentLeft =
+    textContentSize && isTextData(sprite.data)
+      ? sprite.data.align === "center"
+        ? (sprite.width - boxWidth) / 2
+        : sprite.data.align === "right"
+          ? sprite.width - boxWidth
+          : 0
+      : 0;
+  const contentTop = textContentSize ? (sprite.height - boxHeight) / 2 : 0;
+
   const commonProps = {
     x: canvasCenterX,
     y: canvasCenterY,
-    offsetX: sprite.width / 2,
-    offsetY: sprite.height / 2,
-    width: sprite.width,
-    height: sprite.height,
+    offsetX: sprite.width / 2 - contentLeft,
+    offsetY: sprite.height / 2 - contentTop,
+    width: boxWidth,
+    height: boxHeight,
     rotation: sprite.rotation,
     opacity: sprite.opacity,
     draggable: !sprite.locked,
@@ -582,7 +643,7 @@ function SpriteRenderer({
     const d = sprite.data;
     const linesCount = d.content.replace(/\r\n/g, "\n").split("\n").length;
     const textHeight = linesCount * d.fontSize * LINE_HEIGHT;
-    const textY = (sprite.height - textHeight) / 2;
+    const textY = (sprite.height - textHeight) / 2 - contentTop;
 
     element = (
       <Group
@@ -593,13 +654,13 @@ function SpriteRenderer({
           name="hit-rect"
           x={0}
           y={0}
-          width={sprite.width}
-          height={sprite.height}
+          width={boxWidth}
+          height={boxHeight}
           fill="transparent"
         />
         <Text
           name="main-text"
-          x={0}
+          x={-contentLeft}
           y={textY}
           width={sprite.width}
           text={d.content}
@@ -862,22 +923,25 @@ export default function StageView() {
 
       await runtime.preloadSounds();
 
-      let finished = false;
+      let kickoffSettled = false;
       const playPromise = handlePlay({ stepping: true });
       playPromise.then(() => {
-        finished = true;
+        kickoffSettled = true;
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await Promise.resolve();
+      await Promise.resolve();
 
       const exportStartTime = performance.now();
       while (true) {
         layer.draw();
         await captureFrame();
-        if (finished) break;
 
         await runtime.step();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        if (kickoffSettled && !runtime.hasLiveWaiters()) break;
 
         const expectedMs = (frameCounter / fps) * 1000;
         const actualMs = performance.now() - exportStartTime;
@@ -886,11 +950,15 @@ export default function StageView() {
             setTimeout(resolve, expectedMs - actualMs),
           );
         }
-
-        if (frameCounter > fps * 300) break;
       }
 
       runtime.disableStepping();
+
+      if (videoFrames.length === 0) {
+        throw new Error(
+          "Nothing was recorded. Add a block to run when the video starts.",
+        );
+      }
 
       setIsEncoding(true);
       setIsRecordModalOpen(true);
@@ -1073,6 +1141,16 @@ export default function StageView() {
   useEffect(() => {
     runtime.setFps(settings.fps);
   }, [settings.fps]);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    runtime.attachInputTarget(stage.container());
+
+    return () => runtime.detachInput();
+  }, [isFullScreen, stageSize.width, stageSize.height]);
+
 
   useEffect(() => {
     const layer = layerRef.current;

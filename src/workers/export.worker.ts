@@ -15,6 +15,12 @@ self.onmessage = async (e: MessageEvent) => {
     e.data;
 
   try {
+    if (!Array.isArray(frames) || frames.length === 0) {
+      throw new Error(
+        "Nothing was recorded. Add a block to run when the video starts.",
+      );
+    }
+
     if (options.format === "gif") {
       const encoder = GIFEncoder();
       const frameDuration = 1000 / fps;
