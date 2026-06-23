@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useSprites, generateMediaSoundId } from "../lib/sprites";
-import { AudioLines, Play, Square, Plus, Trash2, Replace, Volume2, Scissors, Undo2, Redo2 } from "lucide-react";
+import { useSprites, generateMediaSoundId, createTextSprite, isTextData } from "../lib/sprites";
+import {
+  getAvailableFonts,
+  COMMON_FONTS,
+  WEB_SAFE_FONTS,
+  GOOGLE_FONTS,
+  loadGoogleFont,
+  buildFontStack,
+  detectAvailableFonts,
+  requestFontAccess,
+  getFontPermissionState,
+} from "../lib/fonts";
+import { AudioLines, Play, Square, Plus, Trash2, Replace, Volume2, Scissors, Undo2, Redo2, MessageSquare, Loader2, X } from "lucide-react";
 import { Menu, Item, useContextMenu } from "react-contexify";
 import runtime from "../lib/runtime";
 
@@ -87,17 +98,338 @@ function formatTime(seconds: number): string {
   return `${m}:${String(s).padStart(2, "0")}.${String(ms).padStart(3, "0")}`;
 }
 
+type TranscriptSegment = { text: string; start: number; end: number };
+type TranscriptSource = "model" | "browser";
+type TranscriptTiming = "phrase" | "word";
+type SubtitleFont = string;
+type SubtitleStyle = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
+
+type TranscriptionOptions = {
+  source: TranscriptSource;
+  model: string;
+  timing: TranscriptTiming;
+  font: SubtitleFont;
+  style: SubtitleStyle;
+};
+
+const MOONSHINE_MODELS = [
+  { id: "onnx-community/moonshine-tiny-ONNX", label: "Moonshine tiny" },
+  { id: "onnx-community/moonshine-base-ONNX", label: "Moonshine base" },
+];
+
+const DEFAULT_TRANSCRIPTION_OPTIONS: TranscriptionOptions = {
+  source: "model",
+  model: MOONSHINE_MODELS[0].id,
+  timing: "phrase",
+  font: "Inter",
+  style: 400,
+};
+
+const PHRASE_WORD_MAX = 8;
+const PHRASE_WORDS_PER_LINE = 4;
+
+function wrapText(text: string): string {
+  const tokens = text.split(" ");
+  const lines: string[] = [];
+  let lineWords: string[] = [];
+  let wordCount = 0;
+  for (const token of tokens) {
+    lineWords.push(token);
+    if (/\w/.test(token)) wordCount++;
+    if (wordCount >= PHRASE_WORDS_PER_LINE) {
+      lines.push(lineWords.join(" "));
+      lineWords = [];
+      wordCount = 0;
+    }
+  }
+  if (lineWords.length > 0) lines.push(lineWords.join(" "));
+  return lines.join("\n");
+}
+
+function splitPhrases(text: string): string[] {
+  const tokens = text.trim().split(" ");
+  const chunks: string[] = [];
+  let current: string[] = [];
+  let wordCount = 0;
+
+  for (const token of tokens) {
+    const isWordToken = /\w/.test(token);
+    const endsWithSentence = /[.!?]$/.test(token);
+
+    current.push(token);
+    if (isWordToken) wordCount++;
+
+    if (endsWithSentence || wordCount >= PHRASE_WORD_MAX) {
+      chunks.push(current.join(" ").trim());
+      current = [];
+      wordCount = 0;
+    }
+  }
+
+  if (current.length > 0) chunks.push(current.join(" ").trim());
+
+  return chunks.filter(Boolean);
+}
+
+function createSubtitleSegments(text: string, duration: number, timing: TranscriptTiming): TranscriptSegment[] {
+  const cleaned = text.replace(/[ \t]+/g, " ").trim();
+  if (!cleaned) return [];
+  const parts =
+    timing === "word"
+      ? cleaned.split(/[ \t]+/)
+      : splitPhrases(cleaned).map(wrapText);
+  if (parts.length === 0) return [];
+  const weights = parts.map((part) => Math.max(1, part.length));
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+  let cursor = 0;
+  return parts.map((part, idx) => {
+    const isLast = idx === parts.length - 1;
+    const segmentDuration = isLast ? Math.max(0.1, duration - cursor) : Math.max(0.1, (duration * weights[idx]) / totalWeight);
+    const start = cursor;
+    const end = isLast ? Math.max(start + 0.1, duration) : Math.min(duration, start + segmentDuration);
+    cursor = end;
+    return { text: part, start, end };
+  });
+}
+
+function retimeSegments(segments: TranscriptSegment[], timing: TranscriptTiming): TranscriptSegment[] {
+  return segments.flatMap((segment) =>
+    createSubtitleSegments(segment.text, Math.max(0.1, segment.end - segment.start), timing).map((chunk) => ({
+      text: chunk.text,
+      start: segment.start + chunk.start,
+      end: segment.start + chunk.end,
+    }))
+  );
+}
+
+function resampleAudioBuffer(buffer: AudioBuffer, targetSampleRate: number): Float32Array {
+  const ratio = buffer.sampleRate / targetSampleRate;
+  const length = Math.max(1, Math.round(buffer.duration * targetSampleRate));
+  const output = new Float32Array(length);
+  const channels = Array.from({ length: buffer.numberOfChannels }, (_, index) => buffer.getChannelData(index));
+  for (let i = 0; i < length; i++) {
+    const sourceIndex = i * ratio;
+    const left = Math.floor(sourceIndex);
+    const right = Math.min(buffer.length - 1, left + 1);
+    const t = sourceIndex - left;
+    let sample = 0;
+    for (const channel of channels) {
+      sample += channel[left] * (1 - t) + channel[right] * t;
+    }
+    output[i] = sample / channels.length;
+  }
+  return output;
+}
+
+function TranscriptionModal({
+  browserAvailable,
+  isTranscribing,
+  progress,
+  options,
+  onChange,
+  onClose,
+  onSubmit,
+}: {
+  browserAvailable: boolean;
+  isTranscribing: boolean;
+  progress: string;
+  options: TranscriptionOptions;
+  onChange: (options: TranscriptionOptions) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+}) {
+  const source = browserAvailable ? options.source : "model";
+  const [fonts, setFonts] = useState<string[]>([]);
+  const [fontPermission, setFontPermission] = useState<"granted" | "denied" | "prompt" | "unknown">("unknown");
+  const [requestingFonts, setRequestingFonts] = useState(false);
+
+  useEffect(() => {
+    if (!browserAvailable && options.source === "browser") {
+      onChange({ ...options, source: "model" });
+    }
+  }, [browserAvailable, options, onChange]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const state = await getFontPermissionState();
+        if (!mounted) return;
+        setFontPermission(state);
+
+        const safe = WEB_SAFE_FONTS;
+        const google = GOOGLE_FONTS;
+        const system = ["system-ui", "sans-serif", "serif", "monospace"];
+
+        if (state === "granted") {
+          const found = await detectAvailableFonts(COMMON_FONTS);
+          if (!mounted) return;
+          setFonts(Array.from(new Set([...safe, ...found, ...google, ...system])));
+          return;
+        }
+
+        const fallback = getAvailableFonts(COMMON_FONTS);
+        if (!mounted) return;
+        setFonts(Array.from(new Set([...safe, ...fallback, ...google, ...system])));
+      } catch {
+        if (!mounted) return;
+        setFonts(Array.from(new Set([...WEB_SAFE_FONTS, "Inter", "Arial", "Georgia", "monospace", ...GOOGLE_FONTS])));
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleUnlockFonts = async () => {
+    setRequestingFonts(true);
+    try {
+      const localFonts = await requestFontAccess();
+      if (localFonts && localFonts.length > 0) {
+        setFonts(Array.from(new Set([...WEB_SAFE_FONTS, ...localFonts, ...GOOGLE_FONTS, "system-ui", "sans-serif", "serif", "monospace"])));
+        setFontPermission("granted");
+      }
+    } finally {
+      setRequestingFonts(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={isTranscribing ? undefined : onClose}>
+      <div className="modal-content transcription-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2>Subtitles</h2>
+          <button className="close-modal-btn" disabled={isTranscribing} onClick={onClose}>
+            <X size={16} />
+          </button>
+        </div>
+        <div className="modal-body transcription-modal-body">
+          <p className="transcription-note">
+            Moonshine runs locally inside this tab/app. The model may download once and then cache in your browser. Your audio is not uploaded for model transcription, and the output may be inaccurate.
+          </p>
+          <label className="transcription-row">
+            <span>Method</span>
+            <select
+              value={source}
+              disabled={isTranscribing}
+              onChange={(e) => onChange({ ...options, source: e.target.value as TranscriptSource })}
+            >
+              <option value="model">Model</option>
+              <option value="browser" disabled={!browserAvailable}>
+                Browser{browserAvailable ? "" : " unavailable"}
+              </option>
+            </select>
+          </label>
+          {source === "model" ? (
+            <label className="transcription-row">
+              <span>Model</span>
+              <select
+                value={options.model}
+                disabled={isTranscribing}
+                onChange={(e) => onChange({ ...options, model: e.target.value })}
+              >
+                {MOONSHINE_MODELS.map((model) => (
+                  <option key={model.id} value={model.id}>
+                    {model.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <label className="transcription-row">
+            <span>Timing</span>
+            <select
+              value={options.timing}
+              disabled={isTranscribing}
+              onChange={(e) => onChange({ ...options, timing: e.target.value as TranscriptTiming })}
+            >
+              <option value="phrase">Per phrase</option>
+              <option value="word">Per word</option>
+            </select>
+          </label>
+          <label className="transcription-row">
+            <span>Font</span>
+            <div className="transcription-font-controls">
+              <select
+                value={options.font}
+                disabled={isTranscribing}
+                onChange={(e) => {
+                  const font = e.target.value;
+                  loadGoogleFont(font);
+                  onChange({ ...options, font });
+                }}
+                style={{ fontFamily: buildFontStack(options.font) }}
+              >
+                {!fonts.includes(options.font) && options.font ? (
+                  <option value={options.font} style={{ fontFamily: buildFontStack(options.font) }}>
+                    {options.font}
+                  </option>
+                ) : null}
+                {fonts.map((font) => (
+                  <option key={font} value={font} style={{ fontFamily: buildFontStack(font) }}>
+                    {font}
+                  </option>
+                ))}
+              </select>
+              {fontPermission !== "granted" ? (
+                <button
+                  className="properties-btn"
+                  onClick={handleUnlockFonts}
+                  disabled={isTranscribing || requestingFonts}
+                  title="Request permission to access local fonts"
+                >
+                  {requestingFonts ? "Unlocking..." : "Use Device Fonts"}
+                </button>
+              ) : null}
+            </div>
+          </label>
+          <label className="transcription-row">
+            <span>Style</span>
+            <select
+              value={options.style}
+              disabled={isTranscribing}
+              onChange={(e) => onChange({ ...options, style: Number(e.target.value) as SubtitleStyle })}
+            >
+              <option value={100}>Thin (100)</option>
+              <option value={200}>Extra Light (200)</option>
+              <option value={300}>Light (300)</option>
+              <option value={400}>Regular (400)</option>
+              <option value={500}>Medium (500)</option>
+              <option value={600}>Semi Bold (600)</option>
+              <option value={700}>Bold (700)</option>
+              <option value={800}>Extra Bold (800)</option>
+              <option value={900}>Black (900)</option>
+            </select>
+          </label>
+          {isTranscribing ? <div className="transcription-progress">{progress || "Transcribing..."}</div> : null}
+          <button className="btn primary transcription-submit" disabled={isTranscribing} onClick={onSubmit}>
+            {isTranscribing ? <Loader2 size={14} className="spin" /> : <MessageSquare size={14} />}
+            <span>{isTranscribing ? "Transcribing" : "Transcribe"}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function WaveformPreview({
   src,
   soundId,
   volume,
   onUpdateSrc,
+  onTranscribe,
 }: {
   src: string;
   soundId: string;
   volume: number;
   onUpdateSrc: (newSrc: string) => void;
+  onTranscribe: (segments: TranscriptSegment[], options?: TranscriptionOptions, soundId?: string) => void;
 }) {
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const hasSpeechRecognition = !!(window as any).SpeechRecognition || !!(window as any).webkitSpeechRecognition;
+  const [transcribeProgress, setTranscribeProgress] = useState("");
+  const [isTranscribeModalOpen, setIsTranscribeModalOpen] = useState(false);
+  const [transcriptionOptions, setTranscriptionOptions] = useState<TranscriptionOptions>(DEFAULT_TRANSCRIPTION_OPTIONS);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [peaks, setPeaks] = useState<number[]>([]);
@@ -122,6 +454,15 @@ function WaveformPreview({
   const durationRef = useRef(0);
   const decodedBufferRef = useRef<AudioBuffer | null>(null);
   const selectionRef = useRef<{ start: number; end: number } | null>(null);
+  const transcriptionWorkerRef = useRef<Worker | null>(null);
+  const transcriptionRequestRef = useRef<{
+    id: number;
+    duration: number;
+    timing: TranscriptTiming;
+    resolve: (segments: TranscriptSegment[]) => void;
+    reject: (error: Error) => void;
+  } | null>(null);
+  const transcriptionRequestIdRef = useRef(0);
 
   playingRef.current = playing;
   progressRef.current = progress;
@@ -203,6 +544,13 @@ function WaveformPreview({
       cancelled = true;
     };
   }, [src]);
+
+  useEffect(() => {
+    return () => {
+      transcriptionWorkerRef.current?.terminate();
+      transcriptionWorkerRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     const { width, height, dpr } = canvasSize;
@@ -718,6 +1066,214 @@ function WaveformPreview({
     };
   }, [isFocused, play, handleUndo, handleRedo, applyEdit]);
 
+  const handleLegacyTranscribe = useCallback(() => {
+    const buf = decodedBufferRef.current;
+    if (!buf || isTranscribing) return;
+
+    setIsTranscribing(true);
+    setTranscribeProgress("Transcribing…");
+
+    const SR = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
+    const wavBytes = audioBufferToWav(buf);
+    const blob = new Blob([wavBytes], { type: "audio/wav" });
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.muted = true;
+
+    const rec: any = new SR();
+    rec.continuous = true;
+    rec.interimResults = false;
+    rec.lang = "en-US";
+    rec.maxAlternatives = 1;
+
+    const segments: TranscriptSegment[] = [];
+    let segmentStart = 0;
+
+    rec.onresult = (e: any) => {
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) {
+          const text = e.results[i][0].transcript.trim();
+          if (text) {
+            const now = audio.currentTime;
+            segments.push({ text, start: segmentStart, end: now });
+            segmentStart = now;
+          }
+        }
+      }
+      const pct = buf.duration > 0
+        ? Math.min(99, Math.round((audio.currentTime / buf.duration) * 100))
+        : 0;
+      setTranscribeProgress(`Transcribing… ${pct}%`);
+    };
+
+    const finish = () => {
+      rec.stop();
+      audio.pause();
+      URL.revokeObjectURL(url);
+      if (segments.length > 0) {
+        onTranscribe(segments, undefined, soundId);
+        setTranscribeProgress("Done!");
+        setTimeout(() => setTranscribeProgress(""), 2000);
+      } else {
+        setTranscribeProgress("No speech detected");
+        setTimeout(() => setTranscribeProgress(""), 2000);
+      }
+      setIsTranscribing(false);
+    };
+
+    rec.onerror = (e: any) => {
+      if (e.error === "no-speech") return;
+      finish();
+    };
+
+    audio.onended = finish;
+    audio.onerror = finish;
+
+    rec.start();
+    audio.play().catch(finish);
+  }, [decodedBufferRef, isTranscribing, onTranscribe]);
+
+  const runBrowserTranscription = useCallback((buf: AudioBuffer, options: TranscriptionOptions) => {
+    return new Promise<TranscriptSegment[]>((resolve, reject) => {
+      const SR = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
+      if (!SR) {
+        reject(new Error("Browser speech recognition is not available"));
+        return;
+      }
+
+      const wavBytes = audioBufferToWav(buf);
+      const blob = new Blob([wavBytes], { type: "audio/wav" });
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.muted = true;
+
+      const rec: any = new SR();
+      rec.continuous = true;
+      rec.interimResults = false;
+      rec.lang = "en-US";
+      rec.maxAlternatives = 1;
+
+      const segments: TranscriptSegment[] = [];
+      let segmentStart = 0;
+      let finished = false;
+
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        try {
+          rec.stop();
+        } catch {
+        }
+        audio.pause();
+        URL.revokeObjectURL(url);
+        resolve(retimeSegments(segments, options.timing));
+      };
+
+      rec.onresult = (e: any) => {
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          if (e.results[i].isFinal) {
+            const text = e.results[i][0].transcript.trim();
+            if (text) {
+              const now = audio.currentTime;
+              segments.push({ text, start: segmentStart, end: Math.max(segmentStart + 0.1, now) });
+              segmentStart = now;
+            }
+          }
+        }
+        const pct = buf.duration > 0 ? Math.min(99, Math.round((audio.currentTime / buf.duration) * 100)) : 0;
+        setTranscribeProgress(`Transcribing... ${pct}%`);
+      };
+
+      rec.onerror = (e: any) => {
+        if (e.error === "no-speech") return;
+        finish();
+      };
+
+      audio.onended = finish;
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("Could not play audio for browser transcription"));
+      };
+
+      try {
+        rec.start();
+        audio.play().catch((error) => {
+          URL.revokeObjectURL(url);
+          reject(error instanceof Error ? error : new Error("Could not start browser transcription"));
+        });
+      } catch (error) {
+        URL.revokeObjectURL(url);
+        reject(error instanceof Error ? error : new Error("Could not start browser transcription"));
+      }
+    });
+  }, []);
+
+  const runModelTranscription = useCallback((buf: AudioBuffer, options: TranscriptionOptions) => {
+    return new Promise<TranscriptSegment[]>((resolve, reject) => {
+      let worker = transcriptionWorkerRef.current;
+      if (!worker) {
+        worker = new Worker(new URL("../workers/transcription.worker.ts", import.meta.url), { type: "module" });
+        worker.onmessage = (e) => {
+          const request = transcriptionRequestRef.current;
+          if (!request || e.data.id !== request.id) return;
+          if (e.data.type === "progress") {
+            setTranscribeProgress(e.data.message);
+            return;
+          }
+          transcriptionRequestRef.current = null;
+          if (e.data.type === "complete") {
+            const segments = Array.isArray(e.data.segments) && e.data.segments.length > 0
+              ? retimeSegments(e.data.segments, request.timing)
+              : createSubtitleSegments(String(e.data.text ?? ""), request.duration, request.timing);
+            request.resolve(segments);
+            return;
+          }
+          request.reject(new Error(e.data.message || "Moonshine transcription failed"));
+        };
+        worker.onerror = () => {
+          const request = transcriptionRequestRef.current;
+          transcriptionRequestRef.current = null;
+          request?.reject(new Error("Moonshine worker failed"));
+        };
+        transcriptionWorkerRef.current = worker;
+      }
+
+      const id = ++transcriptionRequestIdRef.current;
+      const audio = resampleAudioBuffer(buf, 16000);
+      transcriptionRequestRef.current = { id, duration: buf.duration, timing: options.timing, resolve, reject };
+      worker.postMessage({ id, audio, model: options.model }, [audio.buffer]);
+    });
+  }, []);
+
+  const handleConfiguredTranscribe = useCallback(async () => {
+    const buf = decodedBufferRef.current;
+    if (!buf || isTranscribing) return;
+
+    setIsTranscribing(true);
+    setTranscribeProgress(transcriptionOptions.source === "model" ? "Loading Moonshine..." : "Starting browser transcription...");
+
+    try {
+      const segments =
+        transcriptionOptions.source === "model"
+          ? await runModelTranscription(buf, transcriptionOptions)
+          : await runBrowserTranscription(buf, transcriptionOptions);
+      if (segments.length > 0) {
+        onTranscribe(segments, transcriptionOptions, soundId);
+        setTranscribeProgress("Done!");
+        setTimeout(() => setTranscribeProgress(""), 2000);
+      } else {
+        setTranscribeProgress("No speech detected");
+        setTimeout(() => setTranscribeProgress(""), 2000);
+      }
+      setIsTranscribeModalOpen(false);
+    } catch (error) {
+      setTranscribeProgress(error instanceof Error ? error.message : "Transcription failed");
+      setTimeout(() => setTranscribeProgress(""), 3500);
+    } finally {
+      setIsTranscribing(false);
+    }
+  }, [decodedBufferRef, isTranscribing, onTranscribe, runBrowserTranscription, runModelTranscription, transcriptionOptions]);
+
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < history.length - 1;
   const selectionDuration = selection ? (selection.end - selection.start) * duration : null;
@@ -751,6 +1307,17 @@ function WaveformPreview({
         >
           <Scissors size={14} />
           <span>Trim</span>
+        </button>
+        <div className="audio-toolbar-divider" />
+        <button
+          className="audio-tool-btn"
+          title="Transcribe audio to subtitles"
+          disabled={!decodedBuffer}
+          onClick={() => setIsTranscribeModalOpen(true)}
+          style={{ color: isTranscribing ? "var(--accent)" : undefined }}
+        >
+          {isTranscribing ? <Loader2 size={14} className="spin" /> : <MessageSquare size={14} />}
+          <span>Transcribe</span>
         </button>
         <div className="audio-toolbar-spacer" />
         <div className="audio-time-display">
@@ -790,6 +1357,19 @@ function WaveformPreview({
           />
         </div>
       </div>
+      {isTranscribeModalOpen ? (
+        <TranscriptionModal
+          browserAvailable={hasSpeechRecognition}
+          isTranscribing={isTranscribing}
+          progress={transcribeProgress}
+          options={transcriptionOptions}
+          onChange={setTranscriptionOptions}
+          onClose={() => {
+            if (!isTranscribing) setIsTranscribeModalOpen(false);
+          }}
+          onSubmit={handleConfiguredTranscribe}
+        />
+      ) : null}
     </div>
   );
 }
@@ -817,6 +1397,169 @@ export default function SoundTab() {
       },
     });
   };
+
+  const handleTranscription = useCallback((segments: TranscriptSegment[], options = DEFAULT_TRANSCRIPTION_OPTIONS, soundId?: string) => {
+    if (!sprite || segments.length === 0) return;
+
+    const subtitleData = {
+      fontFamily: options.font,
+      fontWeight: options.style,
+      color: "#f7fbff",
+      align: "center" as const,
+    };
+
+    const escapeXml = (s: string) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/\n/g, "&#10;").replace(/\r/g, "");
+
+    const buildSubtitleXml = (segs: TranscriptSegment[]): string => {
+      const wordMode = options.timing === "word";
+      const transcriptVarId = "subtitle_transcript_var";
+      const lineVarId = "subtitle_line_var";
+      const entries = (wordMode ? (() => {
+        const out:any[]=[];
+        let phraseGap=0;
+        let accum="";
+        let lastEnd=0;
+        segs.forEach((seg,idx)=>{
+          const gap= idx===0?Math.max(0,seg.start):Math.max(0,seg.start-lastEnd);
+          if(gap>0.25){accum=seg.text; phraseGap=gap;}
+          else accum = accum?accum+" "+seg.text:seg.text;
+          lastEnd=seg.end;
+          out.push({text:wrapText(accum),gap:phraseGap,duration:Math.max(0.1,seg.end-seg.start)});
+          phraseGap=0;
+        });
+        return out;
+      })():segs.map((seg,idx)=>({text:seg.text,gap:idx===0?Math.max(0,seg.start):Math.max(0,seg.start-segs[idx-1].end),duration:Math.max(0.1,seg.end-seg.start)}))).map((seg, idx) => {
+        const gap = seg.gap;
+        const duration = seg.duration
+        return `<value name="ADD${idx}">
+          <block type="dicts_create_with" id="subtitle_entry_${idx}">
+            <mutation items="3"></mutation>
+            <value name="KEY0"><shadow type="text"><field name="TEXT">text</field></shadow></value>
+            <value name="VALUE0"><shadow type="text"><field name="TEXT">${escapeXml(seg.text)}</field></shadow></value>
+            <value name="KEY1"><shadow type="text"><field name="TEXT">gap</field></shadow></value>
+            <value name="VALUE1"><shadow type="math_number"><field name="NUM">${gap.toFixed(3)}</field></shadow></value>
+            <value name="KEY2"><shadow type="text"><field name="TEXT">duration</field></shadow></value>
+            <value name="VALUE2"><shadow type="math_number"><field name="NUM">${duration.toFixed(3)}</field></shadow></value>
+          </block>
+        </value>`;
+      }).join("");
+      return `<xml xmlns="https:
+  <variables>
+    <variable id="${transcriptVarId}">transcript</variable>
+    <variable id="${lineVarId}">line</variable>
+  </variables>
+  <block type="on_start" id="on_start_sub" x="20" y="20">
+    <statement name="DO">
+      ${soundId ? `<block type="audio_play" id="subtitle_play_sound">
+        <field name="SOUND">${soundId}</field>
+        <next>` : ""}
+      <block type="variables_set" id="subtitle_set_transcript">
+        <field name="VAR" id="${transcriptVarId}">transcript</field>
+        <value name="VALUE">
+          <block type="lists_create_with" id="subtitle_transcript_list">
+            <mutation items="${segs.length}"></mutation>
+            ${entries}
+          </block>
+        </value>
+        <next>
+          <block type="controls_forEach" id="subtitle_loop">
+            <field name="VAR" id="${lineVarId}">line</field>
+            <value name="LIST">
+              <block type="variables_get" id="subtitle_get_transcript">
+                <field name="VAR" id="${transcriptVarId}">transcript</field>
+              </block>
+            </value>
+            <statement name="DO">
+              <block type="wait_seconds" id="subtitle_wait_gap">
+                <value name="SECONDS">
+                  <block type="dicts_get_value" id="subtitle_get_gap">
+                    <value name="DICT">
+                      <block type="variables_get" id="subtitle_line_for_gap">
+                        <field name="VAR" id="${lineVarId}">line</field>
+                      </block>
+                    </value>
+                    <value name="KEY"><shadow type="text"><field name="TEXT">gap</field></shadow></value>
+                  </block>
+                </value>
+                <next>
+                  <block type="text_setText" id="subtitle_set_text">
+                    <value name="TEXT">
+                      <block type="dicts_get_value" id="subtitle_get_text">
+                        <value name="DICT">
+                          <block type="variables_get" id="subtitle_line_for_text">
+                            <field name="VAR" id="${lineVarId}">line</field>
+                          </block>
+                        </value>
+                        <value name="KEY"><shadow type="text"><field name="TEXT">text</field></shadow></value>
+                      </block>
+                    </value>
+                    <next>
+                      <block type="wait_seconds" id="subtitle_wait_duration">
+                        <value name="SECONDS">
+                          <block type="dicts_get_value" id="subtitle_get_duration">
+                            <value name="DICT">
+                              <block type="variables_get" id="subtitle_line_for_duration">
+                                <field name="VAR" id="${lineVarId}">line</field>
+                              </block>
+                            </value>
+                            <value name="KEY"><shadow type="text"><field name="TEXT">duration</field></shadow></value>
+                          </block>
+                        </value>
+                        <next>
+                          <block type="text_setText" id="subtitle_clear_text">
+                            <value name="TEXT"><shadow type="text"><field name="TEXT"></field></shadow></value>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </statement>
+          </block>
+        </next>
+      </block>
+      ${soundId ? `</next></block>` : ""}
+    </statement>
+  </block>
+</xml>`;
+    };
+
+    const xml = buildSubtitleXml(segments);
+
+    if (isTextData(sprite.data)) {
+      dispatch({
+        type: "UPDATE_SPRITE",
+        id: sprite.id,
+        changes: {
+          blocklyXml: xml,
+          data: { ...sprite.data, ...subtitleData },
+        },
+      });
+    } else {
+      const count = state.sprites.filter((s) => s.type === "text").length + 1;
+      const newSprite = createTextSprite(`Subtitles ${count}`);
+      const updatedSprite = {
+        ...newSprite,
+        blocklyXml: xml,
+        data: { ...newSprite.data, ...subtitleData },
+      };
+      dispatch({ type: "ADD_SPRITE", sprite: updatedSprite });
+      dispatch({ type: "SELECT_SPRITE", id: updatedSprite.id });
+    }
+
+    setTimeout(() => {
+      window.dispatchEvent(new Event("resize"));
+      const ws=(window as any).Blockly?.getMainWorkspace?.();
+      if(ws){
+        ws.refresh?.();
+        ws.render?.();
+        ws.resizeContents?.();
+      }
+      window.dispatchEvent(new CustomEvent("workspace-refresh"));
+    }, 50);
+  }, [sprite, state.sprites, dispatch]);
 
   const readSoundFile = (file: File, replaceId?: string) => {
     const reader = new FileReader();
@@ -985,6 +1728,7 @@ export default function SoundTab() {
                 soundId={activeItem.id}
                 volume={activeItem.volume ?? 1}
                 onUpdateSrc={(newSrc) => updateSoundById(activeItem.id, { src: newSrc })}
+                onTranscribe={handleTranscription}
               />
               <div className="asset-properties-grid">
                 <div className="properties-row">

@@ -77,6 +77,7 @@ export default function BlocklyEditor({showMenu}:{showMenu:Dispatch<SetStateActi
   const { state, dispatch } = useSprites();
   const selectedSpriteId = state.selectedSpriteId;
   const selectedSprite = state.sprites.find((s) => s.id === selectedSpriteId);
+  const currentXml = selectedSprite?.blocklyXml;
 
   const loadedSpriteIdRef = useRef<string | null>(null);
   const lastLoadKeyRef = useRef<number>(state.loadKey);
@@ -271,30 +272,28 @@ export default function BlocklyEditor({showMenu}:{showMenu:Dispatch<SetStateActi
     const workspace = workspaceRef.current;
     if (!workspace) return;
 
-    if (
-      selectedSpriteId === loadedSpriteIdRef.current &&
-      state.loadKey === lastLoadKeyRef.current
-    )
-      return;
-
     isSwappingRef.current = true;
     (workspace as any).spriteId = selectedSpriteId;
     (workspace as any).sprites = state.sprites;
+
     workspace.clear();
 
-    const activeSprite = state.sprites.find((s) => s.id === selectedSpriteId);
-    if (activeSprite && activeSprite.blocklyXml) {
+    if (currentXml) {
       try {
-        const dom = Blockly.utils.xml.textToDom(activeSprite.blocklyXml);
+        const dom = Blockly.utils.xml.textToDom(currentXml);
         Blockly.Xml.domToWorkspace(dom, workspace);
       } catch (e) {
         console.error(e);
       }
     }
+
+    workspace.render?.();
+    Blockly.svgResize(workspace);
+
     loadedSpriteIdRef.current = selectedSpriteId;
     lastLoadKeyRef.current = state.loadKey;
     isSwappingRef.current = false;
-  }, [selectedSpriteId, state.loadKey]);
+  }, [selectedSpriteId, currentXml, state.loadKey]);
 
   useEffect(() => {
     const workspace = workspaceRef.current;
@@ -307,8 +306,7 @@ export default function BlocklyEditor({showMenu}:{showMenu:Dispatch<SetStateActi
   }, [selectedSprite?.type, selectedSpriteId]);
 
   const { settings } = useProjectSettings();
-
-  useEffect(() => {
+useEffect(() => {
     const workspace = workspaceRef.current;
     if (!workspace) return;
 
