@@ -12,7 +12,7 @@ defineExpandableBlock({
   initialItemCount: 2,
   minItemCount: 0,
   maxItemCount: Infinity,
-  emptyLabel: "create empty list",
+  emptyLabel: "empty list",
   firstInputLabel: "create list with",
   tooltip: "Create a list with any number of items.",
   slots: [

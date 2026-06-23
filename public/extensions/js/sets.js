@@ -20,7 +20,7 @@
         initialItemCount: 2,
         minItemCount: 0,
         maxItemCount: Infinity,
-        emptyLabel: "create empty set",
+        emptyLabel: "empty set",
         firstInputLabel: "create set with",
         shadow: function (index) {
           return {

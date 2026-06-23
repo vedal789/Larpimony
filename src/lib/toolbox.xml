@@ -86,7 +86,7 @@
       <value name="DIVIDEND"><shadow type="math_number"><field name="NUM">64</field></shadow></value>
       <value name="DIVISOR"><shadow type="math_number"><field name="NUM">10</field></shadow></value>
     </block>
-    <block type="math_constant"></block>
+    <block type="math_constants"></block>
     <block type="math_trig"><value name="NUM"><shadow type="math_number"><field name="NUM">45</field></shadow></value></block>
     <block type="math_round"><value name="NUM"><shadow type="math_number"><field name="NUM">3.1</field></shadow></value></block>
     <block type="math_number_property"><value name="NUMBER_TO_CHECK"><shadow type="math_number"><field name="NUM">0</field></shadow></value></block>
@@ -195,15 +195,14 @@
     <block type="wait_seconds"><value name="SECONDS"><shadow type="math_number"><field name="NUM">1</field></shadow></value></block>
   </category>
   <category name="Effects" categorystyle="effects_blocks">
-    <block type="effects_shake"><value name="INTENSITY"><shadow type="math_number"><field name="NUM">5</field></shadow></value></block>
-    <block type="effects_spin"><value name="TIMES"><shadow type="math_number"><field name="NUM">1</field></shadow></value></block>
-    <block type="effects_pulse"></block>
-    <sep gap="50"></sep>
     <block type="effects_tween"><value name="VALUE"><shadow type="math_number"><field name="NUM">100</field></shadow></value><value name="DURATION"><shadow type="math_number"><field name="NUM">1</field></shadow></value></block>
     <block type="effects_setTweenMode"></block>
     <block type="effects_setPropertyTweenMode"></block>
     <block type="effects_resetPropertyTweenMode"></block>
     <sep gap="50"></sep>
+    <block type="effects_shake"><value name="INTENSITY"><shadow type="math_number"><field name="NUM">5</field></shadow></value></block>
+    <block type="effects_spin"><value name="TIMES"><shadow type="math_number"><field name="NUM">1</field></shadow></value></block>
+    <block type="effects_pulse"></block>
     <block type="effects_set_canvas"><value name="VALUE"><shadow type="math_number"><field name="NUM">0</field></shadow></value></block>
     <block type="effects_get_canvas"></block>
     <block type="effects_clear_canvas"></block>

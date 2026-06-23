@@ -13,7 +13,7 @@ defineExpandableBlock({
   initialItemCount: 2,
   minItemCount: 0,
   maxItemCount: Infinity,
-  emptyLabel: "create empty dictionary",
+  emptyLabel: "empty dictionary",
   firstInputLabel: "create dictionary with",
   inputsInline: true,
   tooltip: "Create a dictionary with any number of key-value pairs.",
@@ -58,10 +58,10 @@ Blockly.Blocks["dicts_get_value"] = {
   init: function () {
     this.appendValueInput("DICT")
       .setCheck("Object")
-      .appendField("get value from dictionary");
+      .appendField("in dictionary");
     this.appendValueInput("KEY")
       .setCheck("String")
-      .appendField("with key");
+      .appendField("get value of key");
     this.setInputsInline(true);
     this.setOutput(true, null);
     this.setStyle("dict_blocks");
