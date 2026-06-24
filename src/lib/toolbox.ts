@@ -260,6 +260,7 @@ export default function (mediaType: BlockSourceType) {
   <category name="Timing" categorystyle="timing_blocks">
     ${block("on_start")}
     ${block("wait_seconds", value("SECONDS", shadow("math_number", field("NUM", 1))))}
+    ${block("timing_getCurrentTime")}
   </category>
   <category name="Effects" categorystyle="effects_blocks">
     ${block(

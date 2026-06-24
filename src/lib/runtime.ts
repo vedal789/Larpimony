@@ -624,7 +624,7 @@ class Runtime {
         const video = sprite.data;
         const activeVideo = video.videos.find((v) => v.id === video.currentVideoId) ?? video.videos[0];
         src = activeVideo?.src;
-        
+
         const liveSprite = this.sprites.get(id)?.sprite as any;
         if (liveSprite) {
           videoPlaying = liveSprite.videoPlaying;
@@ -655,7 +655,7 @@ class Runtime {
         if (videoPlaying && videoVolume > 0) {
           const ch0 = buffer.getChannelData(0);
           const ch1 = buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : ch0;
-          
+
           const audioSampleRate = buffer.sampleRate;
           const len = ch0.length;
 
@@ -745,6 +745,10 @@ class Runtime {
   now() {
     if (this.isStepping) return this.virtualTime;
     return performance.now() - this.totalPausedMs - (this.paused ? performance.now() - this.pausedAt : 0);
+  }
+
+  getCurrentTime(): number {
+    return this.now() / 1000;
   }
 
   enableStepping() {
@@ -1642,12 +1646,12 @@ class Runtime {
           "sprites",
           "spriteContextMap",
           `
-                    const runtimeRef = window.RUNTIME;
-                    let context = spriteContextMap[window.__currentSpriteId] || Object.values(spriteContextMap)[0] || { sprite: {}, spriteId: undefined };
-                    return (async () => {
-                        ${compiled}
-                    })();
-                `,
+          const runtimeRef = window.RUNTIME;
+          let context = spriteContextMap[window.__currentSpriteId] || Object.values(spriteContextMap)[0] || { sprite: {}, spriteId: undefined };
+          return (async () => {
+            ${compiled}
+          })();
+          `,
         );
         await fn(spritesArray, spriteContextMap);
         if (this.stopped || myEpoch !== this.epoch) return;

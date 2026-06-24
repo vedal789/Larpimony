@@ -35,4 +35,17 @@ javascriptGenerator.forBlock["wait_seconds"] = function (block: Blockly.Block) {
   return `await window.RUNTIME.delay((${seconds}) * 1000);\n`;
 };
 
+Blockly.Blocks["timing_getCurrentTime"] = {
+  init: function () {
+    this.appendDummyInput().appendField("current video time");
+    this.setOutput(true, "Number");
+    this.setStyle("timing_blocks");
+    this.setTooltip("Get the current elapsed time in seconds since the video started");
+  }
+};
+
+javascriptGenerator.forBlock["timing_getCurrentTime"] = function () {
+  return ["window.RUNTIME.getCurrentTime()", Order.ATOMIC];
+};
+
 export {};
