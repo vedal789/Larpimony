@@ -8,7 +8,6 @@ defineExpandableBlock({
   type: "lists_create_with",
   style: "list_blocks",
   output: "Array",
-  outputShape: 3,
   initialItemCount: 2,
   minItemCount: 0,
   maxItemCount: Infinity,
