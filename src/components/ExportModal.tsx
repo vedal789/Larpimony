@@ -162,7 +162,7 @@ const FUN_FACTS = [
   "Antimony.",
   "'Wait, could we say anything that involves with PenguinMod? ... No, we can't? Awh man...' - Mr.Alien#7893.",
   "According to all known laws of aviation- 'no, no we aren't doing this again.' *explosion.mp4*",
-  "'In the English language, 'that' is a highly versatile word. Depending on how it is used in a sentence, its primary meanings include:Demonstrative Pronoun: Points to a specific person, object, or idea—usually one that is further away, mentioned previously, or out of reach (e.g., 'Look at that').Relative Pronoun: Connects a clause to a noun, often used instead of 'who' or 'which' (e.g., 'The book that I read').Conjunction: Used to introduce a subordinate clause or link an action to a thought/statement (e.g., 'She said that she would be late').Adverb: Means 'to such an extent' or 'particularly' (e.g., 'It isn't that far').' - Vedalgations.",
+  "'Antimony'? I barely know 'er!!!",
   "'kitzal.com.' - Ash.",
   "Antimony wouldn't be created without the amazing people and Penguinmod!",
   "hi im a fun fact :)",
