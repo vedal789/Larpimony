@@ -145,7 +145,7 @@ export default function PropertiesPanel() {
       <div
         className="panel-body"
         style={{
-          overflowY: "visible",
+          overflowY: "auto",
           flex: "none",
           background: "transparent",
         }}

@@ -49,7 +49,7 @@ export default function SpritePanel() {
         flex: 1,
         display: "flex",
         flexDirection: "column",
-        minHeight: 0,
+        minHeight: "fit-content",
       }}
     >
       <div className="panel-body" style={{ background: "transparent" }}>
