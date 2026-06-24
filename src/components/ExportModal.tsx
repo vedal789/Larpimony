@@ -1,11 +1,94 @@
-import { X, Gauge, FileVideo, Loader2, HardDrive, Video } from "lucide-react";
-import { useState } from "react";
+import { X, Gauge, FileVideo, Loader2, HardDrive, Video, Lightbulb, Square } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+
+const FUN_FACTS = [
+  "A group of flamingos is called a flamboyance.",
+  "Honey never spoils. Archaeologists have found 3,000-year-old honey in Egyptian tombs that was still perfectly edible.",
+  "The shortest war in history lasted 38 to 45 minutes; between Britain and Zanzibar in 1896.",
+  "Cleopatra lived closer in time to the Moon landing than to the construction of the Great Pyramid.",
+  "A day on Venus is longer than a year on Venus.",
+  "Octopuses have three hearts, blue blood, and their arms can act independently of their brain.",
+  "The total weight of all ants on Earth roughly equals the total weight of all humans.",
+  "Oxford University is older than the Aztec Empire.",
+  "There are more possible iterations of a game of chess than there are atoms in the observable universe.",
+  "Bananas are technically berries. Strawberries are not.",
+  "The inventor of the Pringles can is buried in one.",
+  "Maine is the closest U.S. state to Africa.",
+  "A jiffy is an actual unit of time: 1/100th of a second.",
+  "The average person walks the equivalent of five times around the Earth in their lifetime.",
+  "Crows can recognize and remember human faces, and hold grudges.",
+  "Sharks are older than trees. Sharks have existed for ~450 million years; trees for ~350 million.",
+  "There are more stars in the universe than grains of sand on all of Earth's beaches.",
+  "A bolt of lightning is five times hotter than the surface of the Sun.",
+  "Sloths are so slow that algae grows in their fur, which they then eat as a snack.",
+  "The longest place name in the world is a hill in New Zealand with 85 characters.",
+  "Pigeon milk is a real thing; both male and female pigeons produce it.",
+  "The tongue of a blue whale weighs as much as an elephant.",
+  "Cats can't taste sweetness; they lack the taste receptor for it.",
+  "It would take less than an hour to drive to space if you could drive straight up at highway speed.",
+  "The 'sixth sick sheikh's sixth sheep's sick' is said to be the hardest tongue twister in English.",
+  "Sea otters hold hands while sleeping so they don't drift apart.",
+  "Vending machines kill more people per year than sharks.",
+  "The world's oldest known living individual tree is a bristlecone pine that's over 5,000 years old.",
+  "Polar bears have jet-black skin beneath their white fur.",
+  "Starfish have no body; biologically, their entire structure is classified as a head.",
+  "Sudan has more ancient pyramids than Egypt; roughly 255 vs. around 118.",
+  "Hippos can't swim: they're too dense to float, so they gallop in slow motion along the riverbed.",
+  "There are more trees on Earth than stars in the Milky Way: roughly 3 trillion trees vs. 400 billion stars.",
+  "A single teaspoon of soil contains more microorganisms than there are people on the planet.",
+  "Identical twins don't share fingerprints; womb conditions during development make each one unique.",
+  "The world's first novel is generally credited to Murasaki Shikibu, a Japanese noblewoman who wrote The Tale of Genji in the 11th century.",
+  "France's longest land border isn't in Europe; it's between French Guiana and Brazil.",
+  "In 2015, a New Zealand man won the French Scrabble championship after memorizing the entire French dictionary in nine weeks; he didn't speak French.",
+  "If you folded a piece of paper 42 times, the resulting thickness would exceed the distance from Earth to the Moon.",
+  "Dragonflies are nature's most effective hunters: they catch their prey roughly 97% of the time.",
+  "Trees communicate through underground fungal networks known as the Wood Wide Web, sharing nutrients and warning signals.",
+  "Dolphins have unique signature whistles that function like names; they respond when they hear their own called.",
+  "The brain of a fruit fly, no larger than a poppy seed, contains roughly 140,000 neurons and 54 million connections.",
+  "A cloud typically weighs around a million tonnes, yet floats because it's slightly less dense than the air around it.",
+  "Competitive art was an official Olympic sport from 1912 to 1948; medals were awarded for architecture, painting, and sculpture.",
+  "You can't hum while holding your nose closed.",
+  "The Moon appears upside down in the Southern Hemisphere; the familiar 'Man in the Moon' looks more like a rabbit from there.",
+  "San Marino, founded in 301 AD, is the world's oldest republic still in existence.",
+];
+
+function useFunFact(active: boolean) {
+  const [index, setIndex] = useState(() => Math.floor(Math.random() * FUN_FACTS.length));
+  const [visible, setVisible] = useState(true);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!active) return;
+
+    const schedulNext = (factIndex: number) => {
+      const delay = Math.min(12000, Math.max(4000, FUN_FACTS[factIndex].length * 50));
+      timerRef.current = setTimeout(() => {
+        setVisible(false);
+        setTimeout(() => {
+          setIndex((prev) => {
+            const next = (prev + 1) % FUN_FACTS.length;
+            schedulNext(next);
+            return next;
+          });
+          setVisible(true);
+        }, 400);
+      }, delay);
+    };
+
+    schedulNext(index);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return { fact: FUN_FACTS[index], visible };
+}
 
 interface ExportModalProps {
   defaultFps: number;
   isClosing?: boolean;
   onClose: () => void;
   onExport: (options: ExportOptions) => void;
+  onAbortRecording?: () => void;
+  onStopAndExport?: () => void;
   isExporting: boolean;
   isEncoding: boolean;
   progress: number | null;
@@ -24,6 +107,8 @@ export default function ExportModal({
   isClosing = false,
   onClose,
   onExport,
+  onAbortRecording,
+  onStopAndExport,
   isExporting,
   isEncoding,
   progress,
@@ -37,6 +122,7 @@ export default function ExportModal({
   );
 
   const isRecording = isExporting && !isEncoding;
+  const { fact: funFact, visible: funFactVisible } = useFunFact(isExporting || isEncoding);
 
   return (
     <div
@@ -142,6 +228,34 @@ export default function ExportModal({
               <div className="export-encoding-sublabel">
                 Recording in background, do not close this window...
               </div>
+              <div className="export-fun-fact" style={{ opacity: funFactVisible ? 1 : 0 }}>
+                <span className="export-fun-fact-label"><Lightbulb size={11} />Did you know?</span>
+                {funFact}
+              </div>
+              {(onStopAndExport || onAbortRecording) && (
+                <div className="export-action-row">
+                  {onStopAndExport && (
+                    <button
+                      className="primary-btn"
+                      style={{ display: "flex", alignItems: "center", gap: "8px" }}
+                      onClick={onStopAndExport}
+                    >
+                      <FileVideo size={15} />
+                      Stop & Export
+                    </button>
+                  )}
+                  {onAbortRecording && (
+                    <button
+                      className="danger-btn"
+                      style={{ display: "flex", alignItems: "center", gap: "8px" }}
+                      onClick={onAbortRecording}
+                    >
+                      <Square size={15} />
+                      Stop Recording
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -167,6 +281,10 @@ export default function ExportModal({
                     style={{ width: `${progress ?? 0}%` }}
                   />
                 </div>
+              </div>
+              <div className="export-fun-fact" style={{ opacity: funFactVisible ? 1 : 0 }}>
+                <span className="export-fun-fact-label"><Lightbulb size={11} />Did you know?</span>
+                {funFact}
               </div>
             </div>
           )}

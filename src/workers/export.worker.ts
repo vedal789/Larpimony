@@ -103,6 +103,24 @@ self.onmessage = async (e: MessageEvent) => {
       format: isMP4 ? new Mp4OutputFormat() : new WebMOutputFormat(),
       target,
     });
+	
+	const now = new Date();
+
+    const timestamp = new Intl.DateTimeFormat("sv-SE", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      fractionalSecondDigits: 3,
+      timeZoneName: "longOffset",
+      hour12: false,
+    }).format(now);
+
+    output.setMetadataTags({
+      comment: `Edited using Antimony (https://editor.antimony.cc) on ${timestamp}`,
+    });
 
     const videoSource = new VideoSampleSource({
       codec: isMP4 ? "avc" : "vp9",

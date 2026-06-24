@@ -827,6 +827,8 @@ export default function StageView() {
   } | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
+  const abortRecordingRef = useRef(false);
+  const stopAndExportRef = useRef(false);
 
   const stageSize = isFullScreen ? fullScreenStageSize : normalStageSize;
   const stageCoords = useMemo(
@@ -877,6 +879,8 @@ export default function StageView() {
     setIsRecordModalOpen(false);
     mediaRecorderRef.current = null;
     recordedChunksRef.current = [];
+    abortRecordingRef.current = false;
+    stopAndExportRef.current = false;
   }, []);
 
   const syncAndVerifyVideos = (advance: boolean = false, stepSec?: number) => {
@@ -937,6 +941,8 @@ export default function StageView() {
     setIsEncoding(false);
     setExportProgress(0);
     setExportFrameCount(0);
+    abortRecordingRef.current = false;
+    stopAndExportRef.current = false;
 
     for (const node of spriteNodeRefs.current.values()) {
       const video = getVideoElementFromNode(node);
@@ -1036,6 +1042,9 @@ export default function StageView() {
       const maxFrames = Math.max(120, Math.ceil(fps * 300));
 
       while (frameCounter < maxFrames) {
+        if (abortRecordingRef.current) break;
+        if (stopAndExportRef.current) break;
+
         await syncAndWaitForVideos(false);
 
         layer.draw();
@@ -1058,6 +1067,13 @@ export default function StageView() {
       }
 
       runtime.disableStepping();
+
+      if (abortRecordingRef.current) {
+        videoFrames.forEach((f) => f.close());
+        videoFrames = [];
+        audioSamples = [];
+        return;
+      }
 
       if (videoFrames.length === 0) {
         throw new Error(
@@ -2286,6 +2302,15 @@ export default function StageView() {
           isClosing={false}
           onClose={() => setIsRecordModalOpen(false)}
           onExport={handleExport}
+          onStopAndExport={() => {
+            stopAndExportRef.current = true;
+            runtime.stop();
+          }}
+          onAbortRecording={() => {
+            abortRecordingRef.current = true;
+            handleStop();
+            resetRecordingState();
+          }}
           isExporting={isRecording}
           isEncoding={isEncoding}
           progress={exportProgress}
