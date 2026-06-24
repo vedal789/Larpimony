@@ -4,6 +4,7 @@ import { javascriptGenerator } from "blockly/javascript";
 
 import "blockly/blocks";
 
+// todo: this is evil
 (() => {
   try {
     const proc = [
