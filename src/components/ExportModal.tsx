@@ -211,7 +211,7 @@ function buildDynamicFacts(
     const nameList = spriteNames.length === 1
       ? `"${spriteNames[0]}"`
       : spriteNames.slice(0, -1).map(n => `"${n}"`).join(", ") + ` and "${spriteNames[spriteNames.length - 1]}"`;
-    facts.push(`The sprite${spriteNames.length === 1 ? "" : "s"} in your project ${spriteNames.length === 1 ? "is" : "are"} ${nameList}.`);
+    facts.push(`The source${spriteNames.length === 1 ? "" : "s"} in your project ${spriteNames.length === 1 ? "is" : "are"} ${nameList}.`);
   }
 
   if (spriteTypes.text > 0 && spriteTypes.media === 0 && spriteTypes.video === 0) {
