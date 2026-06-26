@@ -930,11 +930,10 @@ export default function StageView() {
     const canvas = layer.getCanvas()._canvas;
     if (!canvas) return;
 
-    const captureWidth = Math.floor(canvas.width / 2) * 2;
-    const captureHeight = Math.floor(canvas.height / 2) * 2;
     const physicalWidth = Math.floor(virtualWidth / 2) * 2;
     const physicalHeight = Math.floor(virtualHeight / 2) * 2;
     const fps = options.fps;
+    const sampleRate = 44100;
 
     setIsRecordModalOpen(true);
     setIsRecording(true);
@@ -946,38 +945,33 @@ export default function StageView() {
 
     for (const node of spriteNodeRefs.current.values()) {
       const video = getVideoElementFromNode(node);
-      if (video) {
-        video.pause();
-      }
+      if (video) video.pause();
     }
 
-    let frameCounter = 0;
-    const sampleRate = 44100;
-    const waitForNextFrame = () =>
-      new Promise<void>((resolve) => {
-        requestAnimationFrame(() => resolve());
-      });
+    const hasVideos = () =>
+      Array.from(spriteNodeRefs.current.values()).some((n) => getVideoElementFromNode(n) !== null);
+
     const hasActiveVideoPlayback = () =>
       Array.from(videoShouldPlayRefs.current.values()).some((ref) => ref.current);
 
-    const waitForVideoSeek = (video: HTMLVideoElement): Promise<void> => {
-      return new Promise<void>((resolve) => {
+    const waitForVideoSeek = (video: HTMLVideoElement): Promise<void> =>
+      new Promise<void>((resolve) => {
         let settled = false;
         const done = () => {
           if (settled) return;
           settled = true;
-          video.removeEventListener("seeked", onSeeked);
+          video.removeEventListener("seeked", done);
           clearTimeout(timeout);
           resolve();
         };
-        const onSeeked = () => done();
-        const timeout = setTimeout(done, 300);
-        video.addEventListener("seeked", onSeeked, { once: true });
+        const timeout = setTimeout(done, 200);
+        video.addEventListener("seeked", done, { once: true });
       });
-    };
 
     const exportStepSec = 1 / fps;
+
     const syncAndWaitForVideos = async (advance: boolean) => {
+      if (!hasVideos()) return;
       const beforeTimes = new Map<HTMLVideoElement, number>();
       for (const [, node] of spriteNodeRefs.current.entries()) {
         const video = getVideoElementFromNode(node);
@@ -993,86 +987,66 @@ export default function StageView() {
       if (waits.length > 0) await Promise.all(waits);
     };
 
+    const offscreen = new OffscreenCanvas(physicalWidth, physicalHeight);
+    const offCtx = offscreen.getContext("2d", { alpha: false })!;
+    const scaleX = physicalWidth / canvas.width;
+    const scaleY = physicalHeight / canvas.height;
+
+    const captureFrame = (): ImageBitmap => {
+      offCtx.clearRect(0, 0, physicalWidth, physicalHeight);
+      offCtx.save();
+      offCtx.scale(scaleX, scaleY);
+      offCtx.drawImage(canvas, 0, 0);
+      offCtx.restore();
+      return offscreen.transferToImageBitmap();
+    };
+
+    let frameCounter = 0;
+
     try {
       const worker = new Worker(
         new URL("../workers/export.worker.ts", import.meta.url),
         { type: "module" },
       );
 
-      let frameResolver: ((v?: any) => void) | null = null;
+      let pendingResolve: ((v?: any) => void) | null = null;
+      let pendingReject: ((e: any) => void) | null = null;
       let doneResolver: ((b: ArrayBuffer) => void) | null = null;
       let errorRejecter: ((e: any) => void) | null = null;
 
       worker.onmessage = (e) => {
-        if (e.data.type === "ready") {
-          if (frameResolver) frameResolver();
-        } else if (e.data.type === "frameDone") {
-          setExportFrameCount(e.data.progress);
-          if (frameResolver) frameResolver();
+        if (e.data.type === "ready" || e.data.type === "frameDone") {
+          if (e.data.type === "frameDone") setExportFrameCount(e.data.progress);
+          if (pendingResolve) { pendingResolve(); pendingResolve = null; pendingReject = null; }
         } else if (e.data.type === "done") {
           if (doneResolver) doneResolver(e.data.buffer);
         } else if (e.data.type === "error") {
-          if (errorRejecter) errorRejecter(new Error(e.data.error));
+          const err = new Error(e.data.error);
+          if (pendingReject) { pendingReject(err); pendingResolve = null; pendingReject = null; }
+          if (errorRejecter) errorRejecter(err);
         }
       };
 
-      const initWorker = () =>
+      const waitWorker = () =>
         new Promise<void>((resolve, reject) => {
-          frameResolver = resolve;
+          pendingResolve = resolve;
+          pendingReject = reject;
           errorRejecter = reject;
-          worker.postMessage({
-            type: "init",
-            payload: {
-              options,
-              sampleRate,
-              width: physicalWidth,
-              height: physicalHeight,
-              fps,
-              isChromium: isChromiumBrowser(),
-            },
-          });
         });
 
-      const processFrameWorker = (bitmap: ImageBitmap, audioSample: Float32Array | null | undefined) =>
-        new Promise<void>((resolve, reject) => {
-          frameResolver = resolve;
-          errorRejecter = reject;
-          
-          const transfers: Transferable[] = [bitmap];
-          const audioPayload = audioSample ? [audioSample] : [];
-          
-          if (audioSample && audioSample.buffer) {
-            transfers.push(audioSample.buffer);
-          }
+      worker.postMessage({
+        type: "init",
+        payload: { options, sampleRate, width: physicalWidth, height: physicalHeight, fps, isChromium: isChromiumBrowser() },
+      });
+      await waitWorker();
 
-          worker.postMessage(
-            { type: "frame", payload: { bitmap, audio: audioPayload } },
-            transfers,
-          );
-        });
-
-      const finalizeWorker = () =>
-        new Promise<ArrayBuffer>((resolve, reject) => {
-          doneResolver = resolve;
-          errorRejecter = reject;
-          worker.postMessage({ type: "finalize" });
-        });
-
-      await initWorker();
       await runtime.preloadSounds();
 
       let kickoffSettled = false;
       const playPromise = handlePlay({ stepping: true });
-      playPromise
-        .then(() => {
-          kickoffSettled = true;
-        })
-        .catch(() => {
-          kickoffSettled = true;
-        });
+      playPromise.then(() => { kickoffSettled = true; }).catch(() => { kickoffSettled = true; });
 
-      await waitForNextFrame();
-      await waitForNextFrame();
+      await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
 
       const originalExportFps = settings.fps;
       runtime.setFps(fps);
@@ -1080,47 +1054,37 @@ export default function StageView() {
       const minimumFrames = Math.max(1, Math.min(2, fps));
       const maxFrames = Math.max(120, Math.ceil(fps * 300));
 
+      let encodePromise: Promise<void> = Promise.resolve();
+
       while (frameCounter < maxFrames) {
-        if (abortRecordingRef.current) break;
-        if (stopAndExportRef.current) break;
+        if (abortRecordingRef.current || stopAndExportRef.current) break;
 
         await syncAndWaitForVideos(false);
-
         layer.draw();
-        await waitForNextFrame();
 
-        const bitmap = await createImageBitmap(
-          canvas,
-          0,
-          0,
-          captureWidth,
-          captureHeight,
-          {
-            colorSpaceConversion: "none",
-            resizeWidth: physicalWidth,
-            resizeHeight: physicalHeight,
-            resizeQuality: "medium",
-          },
-        );
-
+        const bitmap = captureFrame();
         const samples = runtime.getAudioSamples(1 / fps, sampleRate);
-        await processFrameWorker(bitmap, samples as Float32Array | null | undefined);
+
+        await encodePromise;
+
+        if (abortRecordingRef.current) { bitmap.close(); break; }
+
+        const audioPayload = samples ? [samples] : [];
+        const transfers: Transferable[] = [bitmap];
+        if (samples?.buffer) transfers.push(samples.buffer);
+
+        worker.postMessage({ type: "frame", payload: { bitmap, audio: audioPayload } }, transfers);
+        encodePromise = waitWorker();
 
         frameCounter++;
 
         await runtime.step();
         await syncAndWaitForVideos(true);
-        await Promise.resolve();
 
-        if (
-          kickoffSettled &&
-          !runtime.hasLiveWaiters() &&
-          !hasActiveVideoPlayback() &&
-          frameCounter >= minimumFrames
-        ) {
-          break;
-        }
+        if (kickoffSettled && !runtime.hasLiveWaiters() && !hasActiveVideoPlayback() && frameCounter >= minimumFrames) break;
       }
+
+      await encodePromise;
 
       runtime.disableStepping();
       runtime.setFps(originalExportFps);
@@ -1131,26 +1095,24 @@ export default function StageView() {
       }
 
       if (frameCounter === 0) {
-        throw new Error(
-          "Nothing was recorded. Add a block to run when the video starts.",
-        );
+        throw new Error("Nothing was recorded. Add a block to run when the video starts.");
       }
 
       setIsEncoding(true);
       setExportProgress(100);
-      const buffer = await finalizeWorker();
+
+      const buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+        doneResolver = resolve;
+        errorRejecter = reject;
+        worker.postMessage({ type: "finalize" });
+      });
       worker.terminate();
 
       const now = new Date();
       const ts = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
       const fileName = `export_${ts}.${options.format}`;
       const blob = new Blob([buffer], {
-        type:
-          options.format === "gif"
-            ? "image/gif"
-            : options.format === "mp4"
-              ? "video/mp4"
-              : "video/webm",
+        type: options.format === "gif" ? "image/gif" : options.format === "mp4" ? "video/mp4" : "video/webm",
       });
       const url = URL.createObjectURL(blob);
       setExportedVideo({ url, name: fileName });
