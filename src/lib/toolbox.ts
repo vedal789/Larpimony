@@ -385,6 +385,13 @@ export default function (mediaType: BlockSourceType) {
     ${block("functions_return", value("VALUE", shadow("math_number", field("NUM", 1))))}
     ${block("functions_execute", value("FUNC"), value("ARG", textShadow("foo")))}
   </category>
+  <category name="OwO" categorystyle="owo_blocks">
+    ${block("gay_furry")}
+    ${block(
+      "gay_furry",
+      value("TEXT", textShadow("nya"))
+  )}
+  </category>
   <category name="Other" categorystyle="other_blocks"></category>
 </xml>`;
 }

@@ -44,6 +44,11 @@ const credits = [
     url: "https://tutel.page",
     roles: "everything or whatever idfk",
   },
+  {
+    name: "Mr.Alien#7893",
+    url: "https://mralienn.straw.page/",
+    roles: "Doing absolutely nothing whatsoever 😂",
+  },
 ];
 
 interface CreditsModalProps {
@@ -70,6 +75,7 @@ export default function CreditsModal({
             <X size={18} />
           </button>
         </div>
+        
         <div className="modal-body credits-modal-body">
           <div className="credits-list">
             {antimony_credits.map((atm_credit) => (
@@ -85,12 +91,12 @@ export default function CreditsModal({
               </a>
             ))}
           </div>
-          <div className="modal-header">
-          <h2>Larpimony Credits</h2>
-          <button className="close-modal-btn" onClick={onClose}>
-            <X size={18} />
-          </button>
         </div>
+
+        <div className="modal-header">
+          <h2>Larpimony Credits</h2>
+        </div>
+        
         <div className="modal-body credits-modal-body">
           <div className="credits-list">
             {credits.map((credit) => (
