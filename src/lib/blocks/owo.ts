@@ -14,7 +14,14 @@ javascriptGenerator.forBlock["gay_furry"] = function () {
 const code = `
     const audio = new Audio('/nya.wav');
     audio.play();
-  `;
+    
+    const spinner = document.getElementById("stage-spinner");
+    if (spinner) spinner.style.display = "block";
+
+    setTimeout(() => {
+      if (spinner) spinner.style.display = "none";
+    }, 1000);
+    `;
   return code;
 };
 

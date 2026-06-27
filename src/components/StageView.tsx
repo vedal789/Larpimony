@@ -2254,7 +2254,12 @@ export default function StageView() {
         </div>
       </div>
       <div className="panel-body" ref={parentRef}>
-        <div className="stage-container">{!isFullScreen && stageElement}</div>
+        <div className="stage-container">
+        {!isFullScreen && stageElement}
+          <div id="stage-spinner" className="stage-spinner" style={{ display: "none" }}>
+            <img src="/gay-furry.gif" alt="woah gay furries wow" />
+          </div>
+        </div>
       </div>
 
       {isFullScreen && (
