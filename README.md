@@ -1,7 +1,10 @@
-# Antimony Editor
+# Larpimony
 
-Antimony (will be) a block-based video editing software, built for both power users and newbies. You'll be able to go from idea to creation in a matter of minutes. It will be 100% free and open-source upon release.
+Larpimony is the EVILEST, most LARPING version of [Antimony](https://antimony.cc) EVER.
 
-## Planned Features
+Larpimony has (Or will have) a bunch of features that are random shit and that would NEVER be able to go in the actual Antimony.
 
-TBA
+
+<sup><sub>**⚠️ Larpimony is not an official version of Antimony, even though it's made by a developer of Antimony ⚠️**</sub></sup>
+<br>
+<sup><sub>You can always use Antimony for free at https://antimony.cc and support the development.</sup></sub>
