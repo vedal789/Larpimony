@@ -11,9 +11,10 @@ Blockly.Blocks["gay_furry"] = {
 };
 
 javascriptGenerator.forBlock["gay_furry"] = function () {
-const code = `
-    const audio = new Audio('/nya.wav');
-    audio.play();
+  const audioUrl = `${import.meta.env.BASE_URL}nya.wav`;
+  const code = `
+    const audio = new Audio(${JSON.stringify(audioUrl)});
+    audio.play().catch(() => {});
   `;
   return code;
 };
