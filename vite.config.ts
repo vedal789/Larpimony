@@ -4,7 +4,6 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
-const isGitHubPages = process.env.GITHUB_ACTIONS === "true";
 
 export default defineConfig({
   plugins: [react()],
@@ -16,7 +15,7 @@ export default defineConfig({
       ),
     },
   },
-  base: isGitHubPages ? "/Larpimony/" : "/",
+  base: "/",
   build: {
     rollupOptions: {
       output: {
