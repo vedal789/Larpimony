@@ -5,22 +5,22 @@ import { appendExtensionCategories } from "./extensions/manager";
 import { DARK_THEME, type ThemeColors } from "./themes";
 
 const blockColors = {
-  logic_blocks: "#6f8ff7",
-  loop_blocks: "#6faaf7",
-  math_blocks: "#e4aa2e",
-  text_blocks: "#5dce40",
-  list_blocks: "#eb4e4e",
-  dict_blocks: "#f36bec",
-  variable_blocks: "#eb8724",
-  procedure_blocks: "#eb458a",
-  other_blocks: "#7a7a7a",
-  motion_blocks: "#4C97FF",
-  appearance_blocks: "#9966FF",
-  timing_blocks: "#FFBF00",
-  effects_blocks: "#FFAB19",
-  layers_blocks: "#4CBFE6",
-  audio_blocks: "#D65CD6",
-  sensors_blocks: "#FF6680"
+  logic_blocks: "#907008",
+  loop_blocks: "#905508",
+  math_blocks: "#1b55d1",
+  text_blocks: "#a231bf",
+  list_blocks: "#14b1b1",
+  dict_blocks: "#0c9413",
+  variable_blocks: "#1478db",
+  procedure_blocks: "#14ba75",
+  other_blocks: "#858585",
+  motion_blocks: "#b36800",
+  appearance_blocks: "#669900",
+  timing_blocks: "#0040ff",
+  effects_blocks: "#0054e6",
+  layers_blocks: "#b34019",
+  audio_blocks: "#29a329",
+  sensors_blocks: "#00997f"
 };
 
 function mapValues<K extends string, V, R>(

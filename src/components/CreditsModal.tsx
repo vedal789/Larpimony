@@ -1,6 +1,6 @@
 import { X } from "lucide-react";
 
-const credits = [
+const antimony_credits = [
   {
     name: "Gen1x",
     url: "https://gen1x.imsogay.me",
@@ -38,6 +38,14 @@ const credits = [
   },
 ];
 
+const credits = [
+  {
+    name: "vedal",
+    url: "https://tutel.page",
+    roles: "everything or whatever idfk",
+  },
+];
+
 interface CreditsModalProps {
   isClosing?: boolean;
   onClose: () => void;
@@ -57,7 +65,28 @@ export default function CreditsModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
-          <h2>Credits</h2>
+          <h2>Antimony Credits</h2>
+          <button className="close-modal-btn" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+        <div className="modal-body credits-modal-body">
+          <div className="credits-list">
+            {antimony_credits.map((atm_credit) => (
+              <a
+                key={atm_credit.name}
+                className="credit-row"
+                href={atm_credit.url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <span className="credit-name">{atm_credit.name}</span>
+                <span className="credit-roles">{atm_credit.roles}</span>
+              </a>
+            ))}
+          </div>
+          <div className="modal-header">
+          <h2>Larpimony Credits</h2>
           <button className="close-modal-btn" onClick={onClose}>
             <X size={18} />
           </button>
@@ -77,7 +106,7 @@ export default function CreditsModal({
               </a>
             ))}
           </div>
-          <p className="credits-thanks">Thank you for using Antimony!</p>
+          <p className="credits-thanks">Thank you for using Antimony and Larpimony!</p>
         </div>
       </div>
     </div>

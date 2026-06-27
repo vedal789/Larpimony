@@ -12,78 +12,27 @@ interface WelcomeModalProps {
 const FPS_PRESETS = [30, 60, 120, 144, 240];
 
 const SUBTITLES = [
-  "What do you want to create today?",
-  "Let's make something great.",
-  "Ready when you are.",
-  "Time to bring an idea to life.",
-  "What's the vision?",
-  "Your next project starts here.",
-  "Build something amazing.",
-  "Every great idea starts somewhere.",
-  "What are we making today?",
-  "Bring your imagination.",
-  "Turn ideas into reality.",
-  "Let's create together.",
-  "What's on your mind?",
-  "Dream it. Build it. Piece it.",
-  "Start with an idea.",
-  "Ready to make progress?",
-  "Create without limits.",
-  "Let's get to work.",
-  "Your project is waiting.",
-  "Make something you'll be proud of!",
+  "what DONT you want to create today",
+  "Let's make something absolutely shit.",
+  "He made an antimony so good even his devs larped it",
+  "Marisa stole the precious Antimony",
+  "Larpimony Jockey 😂😂 - Joke by: vedal",
 ];
 
 const NIGHT_GREETINGS = [
-  "Good night!",
-  "Late night session?",
-  "Still up?",
-  "What's keeping you awake?",
-  "The night is young...",
-  "Creating after dark?",
-  "Can't sleep? Let's build.",
-  "Night owls welcome.",
-  "Making ideas happen tonight?",
-  "One more project before bed?",
+  "go to sleep bro its night time"
 ];
 
 const MORNING_GREETINGS = [
-  "Good morning!",
-  "Morning!",
-  "Rise and create.",
-  "Rise and shine!",
-  "A fresh start awaits.",
-  "Ready to kick off the day?",
-  "Let's make today productive.",
-  "Hope you're feeling inspired.",
-  "Are you ready? Let's begin.",
-  "A new day, new ideas.",
-  "Let's build something today.",
-  "Time to get creative.",
+ "gm twin"
 ];
 
 const AFTERNOON_GREETINGS = [
-  "Good afternoon!",
-  "Afternoon!",
-  "Hope your day's going well.",
-  "Back at it?",
-  "Let's keep the momentum going.",
-  "Ready for your next idea?",
-  "Hope you're having a productive day.",
-  "Let's make this afternoon count.",
+  "go eat lunch!"
 ];
 
 const EVENING_GREETINGS = [
-  "Good evening!",
-  "Evening!",
-  "Winding down or just getting started?",
-  "Hope you're having a great evening.",
-  "Ready to create tonight?",
-  "Ending the day with a project?",
-  "Let's finish the day strong.",
-  "An evening of creativity awaits.",
-  "Perfect time to build something.",
-  "What's on the agenda tonight?",
+  "go play on your swing and edit at the same time!"
 ];
 
 function getTimeGreeting() {
@@ -115,8 +64,8 @@ export default function WelcomeModal({
   const [projectName, setProjectName] = useState(initialProjectName);
   const [subtitle] = useState(pickSubtitle);
 
-  const colors = ["#fdc700", "#ff6467", "#51a2ff"];
-  const title = "ANTIMONY";
+  const colors = ["#0238ff", "#009b98", "#ae5d00"];
+  const title = "LARPIMONY";
 
   return (
     <div
@@ -156,12 +105,12 @@ export default function WelcomeModal({
               className="welcome-name-input"
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
-              placeholder="Untitled Project"
+              placeholder="you can simply just larp around it"
             />
           </div>
 
           <div className="welcome-settings-section">
-            <label>Resolution</label>
+            <label>My lalla Resolution</label>
             <div className="welcome-presets-grid">
               {RESOLUTION_PRESETS.map((preset) => (
                 <button
@@ -182,7 +131,7 @@ export default function WelcomeModal({
           </div>
 
           <div className="welcome-settings-section">
-            <label>Framerate (FPS)</label>
+            <label>Framerate (FPS) (oh wait yeah you have a bad pc you will be at 1fps)</label>
             <div className="welcome-presets-grid">
               {FPS_PRESETS.map((fps) => (
                 <button
@@ -202,13 +151,13 @@ export default function WelcomeModal({
             className="btn primary welcome-start-btn"
             onClick={() => onClose(settings, projectName)}
           >
-            Start Creating
+            Start Larp Creating
           </button>
           <button
             className="btn welcome-load-btn"
             onClick={onLoad}
           >
-            Load Existing Project
+            Load Existing Larp
           </button>
         </div>
       </div>

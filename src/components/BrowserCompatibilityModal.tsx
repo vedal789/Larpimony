@@ -28,7 +28,7 @@ export default function BrowserCompatibilityModal({
           <div className="browser-compat-warning">
             <AlertTriangle size={18} />
             <p>
-              Antimony is built and tested primarily for Chromium-based browsers.
+              Larpimony is built and tested primarily for Chromium-based browsers.
               You may encounter bugs and compatibility issues in other browsers.
             </p>
           </div>
